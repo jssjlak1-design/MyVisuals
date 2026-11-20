@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "myvisuals",
+  "version": "1.0.0",
+  "name": "MyVisuals",
+  "description": "Custom visuals and optimization mod for 1.20.4",
+  "authors": ["You"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.myvisuals.MyVisualsClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.4",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}
