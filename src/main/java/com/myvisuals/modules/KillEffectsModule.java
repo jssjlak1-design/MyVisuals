@@ -35,7 +35,10 @@ public class KillEffectsModule extends Module {
         Iterator<LivingEntity> it = attackedEntities.iterator();
         while (it.hasNext()) {
             LivingEntity entity = it.next();
-            if (entity.isDead() || entity.getHealth()  32) {
+            if (entity.isDead() || Float.compare(entity.getHealth(), 0.0f) == 0 || Float.compare(entity.getHealth(), 0.0f) == -1) {
+                spawnKillEffect(entity);
+                it.remove();
+            } else if (entity.isRemoved() || Float.compare(entity.distanceTo(mc.player), 32.0f) == 1) {
                 it.remove();
             }
         }
