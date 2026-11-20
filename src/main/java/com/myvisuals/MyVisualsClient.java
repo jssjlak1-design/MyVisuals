@@ -24,7 +24,7 @@ public class MyVisualsClient implements ClientModInitializer {
                 "category.myvisuals"
         ));
 
-        ClientTickEvents.END_CLIENT_TICK.addClientTickListener(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
 
             moduleManager.onTick();
