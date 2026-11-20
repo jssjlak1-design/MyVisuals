@@ -20,7 +20,6 @@ public class KillEffectsModule extends Module {
     public KillEffectsModule() {
         super("KillEffects", "Молния и частицы при убийстве", Category.COMBAT);
 
-        // Запоминаем всех, кого мы ударили
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (isEnabled() && world.isClient() && entity instanceof LivingEntity living && entity != mc.player) {
                 attackedEntities.add(living);
@@ -36,7 +35,6 @@ public class KillEffectsModule extends Module {
         Iterator<LivingEntity> it = attackedEntities.iterator();
         while (it.hasNext()) {
             LivingEntity entity = it.next();
-            // Если цель умерла — запускаем красивый эффект!
             if (entity.isDead() || entity.getHealth()  32) {
                 it.remove();
             }
@@ -46,13 +44,11 @@ public class KillEffectsModule extends Module {
     private void spawnKillEffect(LivingEntity target) {
         if (mc.world == null) return;
 
-        // 1. Визуальная молния (без урона и огня)
         LightningEntity lightning = new LightningEntity(EntityType.LIGHTNING_BOLT, mc.world);
         lightning.setPosition(target.getX(), target.getY(), target.getZ());
         lightning.setCosmetic(true);
         mc.world.addEntity(lightning);
 
-        // 2. Взрыв светящихся частиц вокруг места убийства
         for (int i = 0; i < 35; i++) {
             double offsetX = (Math.random() - 0.5) * 1.5;
             double offsetY = Math.random() * 1.8;
@@ -64,7 +60,6 @@ public class KillEffectsModule extends Module {
                     offsetX * 0.25, 0.15, offsetZ * 0.25);
         }
 
-        // 3. Звук удара грома
         mc.player.playSound(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, 0.5f, 1.2f);
     }
 }
