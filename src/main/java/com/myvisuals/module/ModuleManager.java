@@ -1,21 +1,12 @@
 package com.myvisuals.module;
 
-import com.myvisuals.modules.AutoSprintModule;
-import com.myvisuals.modules.ChinaHatModule;
-import com.myvisuals.modules.CustomSkyModule;
-import com.myvisuals.modules.FullBrightModule;
-import com.myvisuals.modules.GuiSoundsModule;
-import com.myvisuals.modules.HitParticlesModule;
-import com.myvisuals.modules.JumpCirclesModule;
-import com.myvisuals.modules.KillEffectsModule;
-import com.myvisuals.modules.TargetEspModule;
-import com.myvisuals.modules.WatermarkHudModule;
-
+import com.myvisuals.modules.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ModuleManager {
-    private final List modules = new ArrayList();
+    // Добавляем <Module> - это делает код безопасным и убирает необходимость в (Module) obj
+    private final List<Module> modules = new ArrayList<>();
 
     public ModuleManager() {
         modules.add(new TargetEspModule());
@@ -30,14 +21,13 @@ public class ModuleManager {
         modules.add(new GuiSoundsModule());
     }
 
-    public List getModules() {
+    public List<Module> getModules() {
         return modules;
     }
 
-    public List getModulesByCategory(Category category) {
-        List result = new ArrayList();
-        for (Object obj : modules) {
-            Module m = (Module) obj;
+    public List<Module> getModulesByCategory(Category category) {
+        List<Module> result = new ArrayList<>();
+        for (Module m : modules) { // Больше никаких Object и приведений типов!
             if (m.getCategory() == category) {
                 result.add(m);
             }
@@ -45,16 +35,19 @@ public class ModuleManager {
         return result;
     }
 
-    public GuiSoundsModule getGuiSounds() {
-        for (Object obj : modules) {
-            if (obj instanceof GuiSoundsModule gs) return gs;
+    // Удобный метод для поиска модуля по классу (понадобится для GUI)
+    @SuppressWarnings("unchecked")
+    public <T extends Module> T getModule(Class<T> clazz) {
+        for (Module m : modules) {
+            if (clazz.isInstance(m)) {
+                return (T) m;
+            }
         }
         return null;
     }
 
     public void onTick() {
-        for (Object obj : modules) {
-            Module m = (Module) obj;
+        for (Module m : modules) {
             if (m.isEnabled()) {
                 m.onTick();
             }
