@@ -6,93 +6,153 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.text.Text;
-import java.awt.Color;
 
 public class CustomTitleScreen extends Screen {
-    public CustomTitleScreen() { super(Text.literal("MyVisuals Main Menu")); }
+    // Цвета в формате ARGB (без java.awt!)
+    private static final int COLOR_BG_TOP = 0xFF0C161A;
+    private static final int COLOR_BG_BOTTOM = 0xFF182A2E;
+    private static final int COLOR_CARD_BORDER = 0x37A0D7DC;
+    private static final int COLOR_CARD_BG = 0xC3162024;
+    private static final int COLOR_BUTTON_HOVER = 0x415FB4BE;
+    private static final int COLOR_BUTTON_NORMAL = 0x0CFFFFFF;
+    private static final int COLOR_ACCENT = 0xFF6EDCE6;
+    
+    private static final int CARD_WIDTH = 175;
+    private static final int BUTTON_HEIGHT = 22;
+    private static final int BUTTON_SPACING = 26;
 
-    private boolean inBox(double mx, double my, int x, int y, int w, int h) {
-        return Float.compare((float) mx, x) != -1 && Float.compare((float) mx, x + w) != 1 && Float.compare((float) my, y) != -1 && Float.compare((float) my, y + h) != 1;
+    public CustomTitleScreen() {
+        super(Text.literal("MyVisuals Main Menu"));
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ctx.fillGradient(0, 0, this.width, this.height, new Color(12, 22, 26).getRGB(), new Color(24, 42, 46).getRGB());
+        // Фон с градиентом
+        ctx.fillGradient(0, 0, this.width, this.height, COLOR_BG_TOP, COLOR_BG_BOTTOM);
+        
+        // Анимированная волна
         float t = (System.currentTimeMillis() % 8000L) / 8000.0f;
         int waveY = (int) (this.height * 0.45f + Math.sin(t * Math.PI * 2.0) * 18);
-        ctx.fillGradient(0, waveY, this.width, this.height, new Color(45, 95, 95, 45).getRGB(), new Color(10, 16, 20, 160).getRGB());
+        ctx.fillGradient(0, waveY, this.width, this.height, 0x2D2D5F5F, 0xA00A1014);
 
-        int cardW = 175, cardH = Math.min(220, this.height - 28);
-        int cardX = (this.width - cardW) / 2, cardY = (this.height - cardH) / 2;
+        // Карточка
+        int cardHeight = Math.min(220, this.height - 28);
+        int cardX = (this.width - CARD_WIDTH) / 2;
+        int cardY = (this.height - cardHeight) / 2;
 
-        rect(ctx, cardX - 1, cardY - 1, cardW + 2, cardH + 2, 11, new Color(160, 215, 220, 55).getRGB());
-        rect(ctx, cardX, cardY, cardW, cardH, 11, new Color(22, 32, 36, 195).getRGB());
+        drawRoundedRect(ctx, cardX - 1, cardY - 1, CARD_WIDTH + 2, cardHeight + 2, 11, COLOR_CARD_BORDER);
+        drawRoundedRect(ctx, cardX, cardY, CARD_WIDTH, cardHeight, 11, COLOR_CARD_BG);
 
-        rect(ctx, cardX + 12, cardY + 12, 20, 20, 6, new Color(75, 165, 175, 220).getRGB());
+        // Логотип
+        drawRoundedRect(ctx, cardX + 12, cardY + 12, 20, 20, 6, 0xFF4BA5AF);
         ctx.drawTextWithShadow(this.textRenderer, "§lM", cardX + 19, cardY + 18, 0xFFFFFFFF);
         ctx.drawTextWithShadow(this.textRenderer, "§lMyVisuals", cardX + 38, cardY + 14, 0xFFF0F8FA);
         ctx.drawTextWithShadow(this.textRenderer, "§71.20.4 Client", cardX + 38, cardY + 24, 0xFF8FB0B5);
 
+        // Секция PLAY
         ctx.drawTextWithShadow(this.textRenderer, "§8PLAY", cardX + 14, cardY + 42, 0xFF6E8B90);
-        String[] items = {"Одиночная игра", "Сетевая игра", "Настройки", "Выход"};
-        String[] icons = {"▶", "🌐", "⚙", "✕"};
+        
+        // Кнопки
         int startY = cardY + 54;
+        String[] items = {"Одиночная игра", "Сетевая игра", "Настройки", "Выход"};
+        String[] icons = {">", "M", "O", "X"}; // ASCII вместо Unicode
 
-        for (int i = 0; i != 4; i++) {
-            int bx = cardX + 10, by = startY + i * 26, bw = cardW - 20, bh = 22;
-            if (i == 2) { ctx.drawTextWithShadow(this.textRenderer, "§8CLIENT", cardX + 14, by - 2, 0xFF6E8B90); by += 10; }
-            else if (i == 3) { by += 10; }
-            boolean hov = inBox(mouseX, mouseY, bx, by, bw, bh);
-            if (hov) {
-                rect(ctx, bx, by, bw, bh, 6, new Color(95, 180, 190, 65).getRGB());
-                rect(ctx, bx, by + 4, 2, 14, 1, new Color(110, 220, 230).getRGB());
-            } else {
-                rect(ctx, bx, by, bw, bh, 6, new Color(255, 255, 255, 12).getRGB());
+        for (int i = 0; i < 4; i++) {
+            int buttonY = startY + i * BUTTON_SPACING;
+            
+            // Добавляем отступ перед "Настройки" и "Выход"
+            if (i == 2) {
+                ctx.drawTextWithShadow(this.textRenderer, "§8CLIENT", cardX + 14, buttonY - 2, 0xFF6E8B90);
+                buttonY += 10;
+            } else if (i == 3) {
+                buttonY += 10;
             }
-            ctx.drawTextWithShadow(this.textRenderer, icons[i], bx + 8, by + 7, hov ? 0xFF88F0FA : 0xFF8CA8AD);
-            ctx.drawTextWithShadow(this.textRenderer, items[i], bx + 22, by + 7, hov ? 0xFFFFFFFF : 0xFFC5D8DC);
+
+            int buttonX = cardX + 10;
+            int buttonWidth = CARD_WIDTH - 20;
+            boolean hovered = isMouseOver(mouseX, mouseY, buttonX, buttonY, buttonWidth, BUTTON_HEIGHT);
+
+            if (hovered) {
+                drawRoundedRect(ctx, buttonX, buttonY, buttonWidth, BUTTON_HEIGHT, 6, COLOR_BUTTON_HOVER);
+                ctx.fill(buttonX, buttonY + 4, buttonX + 2, buttonY + 18, COLOR_ACCENT);
+            } else {
+                drawRoundedRect(ctx, buttonX, buttonY, buttonWidth, BUTTON_HEIGHT, 6, COLOR_BUTTON_NORMAL);
+            }
+
+            ctx.drawTextWithShadow(this.textRenderer, icons[i], buttonX + 8, buttonY + 7, 
+                hovered ? 0xFF88F0FA : 0xFF8CA8AD);
+            ctx.drawTextWithShadow(this.textRenderer, items[i], buttonX + 22, buttonY + 7, 
+                hovered ? 0xFFFFFFFF : 0xFFC5D8DC);
         }
 
-        int profY = cardY + cardH - 32;
-        rect(ctx, cardX + 10, profY, cardW - 20, 22, 6, new Color(255, 255, 255, 18).getRGB());
-        rect(ctx, cardX + 14, profY + 4, 14, 14, 4, new Color(85, 185, 195).getRGB());
-        String nick = (this.client != null && this.client.getSession() != null) ? this.client.getSession().getUsername() : "Player";
-        if (Integer.compare(nick.length(), 12) == 1) nick = nick.substring(0, 12);
-        ctx.drawTextWithShadow(this.textRenderer, nick, cardX + 32, profY + 4, 0xFFFFFFFF);
-        ctx.drawTextWithShadow(this.textRenderer, "§a● Online", cardX + 32, profY + 13, 0xFF88E0B0);
+        // Профиль игрока
+        int profileY = cardY + cardHeight - 32;
+        drawRoundedRect(ctx, cardX + 10, profileY, CARD_WIDTH - 20, 22, 6, 0x12FFFFFF);
+        drawRoundedRect(ctx, cardX + 14, profileY + 4, 14, 14, 4, 0xFF55B9C3);
+        
+        String nickname = (this.client != null && this.client.getSession() != null) 
+            ? this.client.getSession().getUsername() 
+            : "Player";
+        if (nickname.length() > 12) nickname = nickname.substring(0, 12);
+        
+        ctx.drawTextWithShadow(this.textRenderer, nickname, cardX + 32, profileY + 4, 0xFFFFFFFF);
+        ctx.drawTextWithShadow(this.textRenderer, "§a● Online", cardX + 32, profileY + 13, 0xFF88E0B0);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0 || this.client == null) return super.mouseClicked(mouseX, mouseY, button);
-        int cardW = 175, cardH = Math.min(220, this.height - 28);
-        int cardX = (this.width - cardW) / 2, cardY = (this.height - cardH) / 2, startY = cardY + 54;
 
-        for (int i = 0; i != 4; i++) {
-            int bx = cardX + 10, by = startY + i * 26, bw = cardW - 20, bh = 22;
-            if (i == 2 || i == 3) by += 10;
-            if (inBox(mouseX, mouseY, bx, by, bw, bh)) {
-                if (i == 0) this.client.setScreen(new SelectWorldScreen(this));
-                if (i == 1) this.client.setScreen(new MultiplayerScreen(this));
-                if (i == 2) this.client.setScreen(new OptionsScreen(this, this.client.options));
-                if (i == 3) this.client.scheduleStop();
+        int cardHeight = Math.min(220, this.height - 28);
+        int cardX = (this.width - CARD_WIDTH) / 2;
+        int cardY = (this.height - cardHeight) / 2;
+        int startY = cardY + 54;
+
+        for (int i = 0; i < 4; i++) {
+            int buttonY = startY + i * BUTTON_SPACING;
+            if (i == 2 || i == 3) buttonY += 10;
+
+            int buttonX = cardX + 10;
+            int buttonWidth = CARD_WIDTH - 20;
+
+            if (isMouseOver(mouseX, mouseY, buttonX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                switch (i) {
+                    case 0 -> this.client.setScreen(new SelectWorldScreen(this));
+                    case 1 -> this.client.setScreen(new MultiplayerScreen(this));
+                    case 2 -> this.client.setScreen(new OptionsScreen(this, this.client.options));
+                    case 3 -> this.client.scheduleStop();
+                }
                 return true;
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private void rect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
-        if (Integer.compare(w, 1) == -1 || Integer.compare(h, 1) == -1) return;
-        int rad = Math.min(r, Math.min(w / 2, h / 2));
-        ctx.fill(x + rad, y, x + w - rad, y + h, color); ctx.fill(x, y + rad, x + rad, y + h - rad, color); ctx.fill(x + w - rad, y + rad, x + w, y + h - rad, color);
-        for (int i = 0; i != rad; i++) {
-            int off = rad - (int) Math.round(Math.sqrt(rad * rad - (rad - i) * (rad - i)));
-            ctx.fill(x + off, y + i, x + rad, y + i + 1, color); ctx.fill(x + w - rad, y + i, x + w - off, y + i + 1, color);
-            ctx.fill(x + off, y + h - i - 1, x + rad, y + h - i, color); ctx.fill(x + w - rad, y + h - i - 1, x + w - off, y + h - i, color);
+    private boolean isMouseOver(double mouseX, double mouseY, int x, int y, int width, int height) {
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+    }
+
+    private void drawRoundedRect(DrawContext ctx, int x, int y, int width, int height, int radius, int color) {
+        if (width < 1 || height < 1) return;
+        int r = Math.min(radius, Math.min(width / 2, height / 2));
+        
+        // Центральная часть
+        ctx.fill(x + r, y, x + width - r, y + height, color);
+        ctx.fill(x, y + r, x + r, y + height - r, color);
+        ctx.fill(x + width - r, y + r, x + width, y + height - r, color);
+        
+        // Скругления
+        for (int i = 0; i < r; i++) {
+            int offset = r - (int) Math.round(Math.sqrt(r * r - (r - i) * (r - i)));
+            ctx.fill(x + offset, y + i, x + r, y + i + 1, color);
+            ctx.fill(x + width - r, y + i, x + width - offset, y + i + 1, color);
+            ctx.fill(x + offset, y + height - i - 1, x + r, y + height - i, color);
+            ctx.fill(x + width - r, y + height - i - 1, x + width - offset, y + height - i, color);
         }
     }
 
     @Override
-    public boolean shouldCloseOnEsc() { return false; }
+    public boolean shouldCloseOnEsc() {
+        return false; // Нельзя закрыть главное меню по ESC
+    }
 }
