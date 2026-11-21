@@ -14,12 +14,15 @@ import java.util.Map;
 
 public class ClickGuiScreen extends Screen {
     private static final int WINDOW_WIDTH = 200;
-    private static final int HEADER_HEIGHT = 28;
-    private static final int ROW_HEIGHT = 23;
-    private static final int ROW_HEIGHT_VISIBLE = 20;
+    private static final int HEADER_HEIGHT = 25;
+    private static final int ROW_HEIGHT = 22;
+    private static final int ROW_CONTENT_HEIGHT = 20;
 
-    private static final int ACCENT_COLOR =
-            RenderUtils.getColor(0, 200, 255, 255);
+    private static final int GLASS_BG = RenderUtils.getColor(20, 25, 30, 180);
+    private static final int ACCENT_COLOR = RenderUtils.getColor(0, 200, 255, 255);
+    private static final int TEXT_COLOR = 0xFFFFFFFF;
+    private static final int TEXT_DIM = 0xFFAAAAAA;
+    private static final int HOVER_COLOR = RenderUtils.getColor(255, 255, 255, 30);
 
     private final Map<Category, Window> windows = new LinkedHashMap<>();
 
@@ -28,42 +31,20 @@ public class ClickGuiScreen extends Screen {
     private double dragOffsetY;
 
     public ClickGuiScreen() {
-        super(Text.literal("MyVisuals"));
+        super(Text.literal("MyVisuals ClickGUI"));
 
-        int startX = 35;
-        int gap = 215;
+        int startX = 50;
+        int gap = 220;
 
         for (Category category : Category.values()) {
             int x = startX + category.ordinal() * gap;
-            windows.put(category, new Window(category, x, 55));
+            windows.put(category, new Window(category, x, 50));
         }
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Затемнённый фон
-        context.fillGradient(
-                0, 0, width, height,
-                0xC9080B12,
-                0xE6080B12
-        );
-
-        // Заголовок экрана
-        context.drawTextWithShadow(
-                textRenderer,
-                "MYVISUALS",
-                18,
-                15,
-                ACCENT_COLOR
-        );
-
-        context.drawTextWithShadow(
-                textRenderer,
-                "CLIENT MENU",
-                18,
-                28,
-                0xFF8B97AA
-        );
+        context.fillGradient(0, 0, width, height, 0x80000000, 0x80000000);
 
         for (Window window : windows.values()) {
             window.render(context, mouseX, mouseY);
@@ -71,10 +52,10 @@ public class ClickGuiScreen extends Screen {
 
         context.drawTextWithShadow(
                 textRenderer,
-                "SHIFT + ЛКМ — перемещение окна",
-                18,
+                "Shift + ЛКМ — перемещение окна",
+                10,
                 height - 20,
-                0xFF8B97AA
+                TEXT_DIM
         );
 
         super.render(context, mouseX, mouseY, delta);
@@ -86,9 +67,9 @@ public class ClickGuiScreen extends Screen {
             return super.mouseClicked(mouseX, mouseY, button);
         }
 
+        // Проверяем окна в обратном порядке: верхнее окно получает клик первым.
         Window[] orderedWindows = windows.values().toArray(new Window[0]);
 
-        // Последнее нарисованное окно проверяем первым
         for (int i = orderedWindows.length - 1; i >= 0; i--) {
             Window window = orderedWindows[i];
 
@@ -102,7 +83,6 @@ public class ClickGuiScreen extends Screen {
             }
 
             Module module = window.getModuleAt(mouseX, mouseY);
-
             if (module != null) {
                 module.toggle();
                 playToggleSound();
@@ -139,11 +119,6 @@ public class ClickGuiScreen extends Screen {
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
-    @Override
-    public boolean shouldPause() {
-        return false;
-    }
-
     private int clampX(int x) {
         return Math.max(0, Math.min(x, Math.max(0, width - WINDOW_WIDTH)));
     }
@@ -177,157 +152,66 @@ public class ClickGuiScreen extends Screen {
         }
 
         private int getHeight() {
-            if (MyVisualsClient.moduleManager == null) {
-                return HEADER_HEIGHT + 25;
-            }
-
             int moduleCount =
-                    MyVisualsClient.moduleManager
-                            .getModulesByCategory(category)
-                            .size();
+                    MyVisualsClient.moduleManager.getModulesByCategory(category).size();
 
-            return HEADER_HEIGHT + 12 + moduleCount * ROW_HEIGHT + 20;
+            return HEADER_HEIGHT + 5 + moduleCount * ROW_HEIGHT + 5;
         }
 
         private void render(DrawContext context, int mouseX, int mouseY) {
-            if (MyVisualsClient.moduleManager == null) {
-                return;
-            }
-
             int height = getHeight();
 
-            // Фон панели
             RenderUtils.drawRoundedRect(
-                    context,
-                    x, y,
-                    WINDOW_WIDTH, height,
-                    9,
-                    RenderUtils.getColor(13, 17, 25, 238)
+                    context, x, y, WINDOW_WIDTH, height, 8, GLASS_BG
             );
 
-            // Акцентная полоса и линия под заголовком
-            context.fill(
-                    x + 10, y,
-                    x + WINDOW_WIDTH - 10, y + 2,
-                    ACCENT_COLOR
-            );
-
-            context.fill(
-                    x + 10, y + HEADER_HEIGHT,
-                    x + WINDOW_WIDTH - 10, y + HEADER_HEIGHT + 1,
-                    RenderUtils.getColor(255, 255, 255, 28)
-            );
-
-            // Цветная точка и название категории
-            context.fill(
-                    x + 12, y + 11,
-                    x + 17, y + 16,
-                    category.getColor()
-            );
+            context.fill(x, y, x + WINDOW_WIDTH, y + 2, ACCENT_COLOR);
 
             context.drawTextWithShadow(
                     textRenderer,
                     category.getName(),
-                    x + 23,
-                    y + 9,
-                    0xFFFFFFFF
+                    x + 10,
+                    y + 8,
+                    category.getColor()
             );
 
-            int moduleCount =
-                    MyVisualsClient.moduleManager
-                            .getModulesByCategory(category)
-                            .size();
-
-            String countText = String.valueOf(moduleCount);
-            int countWidth = textRenderer.getWidth(countText);
-
-            RenderUtils.drawRoundedRect(
-                    context,
-                    x + WINDOW_WIDTH - countWidth - 21,
-                    y + 7,
-                    countWidth + 12,
-                    15,
-                    5,
-                    RenderUtils.getColor(255, 255, 255, 20)
-            );
-
-            context.drawTextWithShadow(
-                    textRenderer,
-                    countText,
-                    x + WINDOW_WIDTH - countWidth - 15,
-                    y + 10,
-                    0xFFB8C4D8
-            );
-
-            // Карточки модулей
-            int rowY = y + HEADER_HEIGHT + 6;
+            int rowY = y + HEADER_HEIGHT + 5;
 
             for (Module module :
-                    MyVisualsClient.moduleManager
-                            .getModulesByCategory(category)) {
-
+                    MyVisualsClient.moduleManager.getModulesByCategory(category)) {
                 boolean hovered = isMouseOver(
                         mouseX, mouseY,
-                        x + 7, rowY,
-                        WINDOW_WIDTH - 14, ROW_HEIGHT_VISIBLE
+                        x + 5, rowY,
+                        WINDOW_WIDTH - 10, ROW_CONTENT_HEIGHT
                 );
 
-                int cardColor;
-
-                if (module.isEnabled()) {
-                    cardColor = hovered
-                            ? RenderUtils.getColor(0, 200, 255, 48)
-                            : RenderUtils.getColor(0, 200, 255, 24);
-                } else {
-                    cardColor = hovered
-                            ? RenderUtils.getColor(255, 255, 255, 25)
-                            : RenderUtils.getColor(255, 255, 255, 9);
-                }
-
-                RenderUtils.drawRoundedRect(
-                        context,
-                        x + 7, rowY,
-                        WINDOW_WIDTH - 14, ROW_HEIGHT_VISIBLE,
-                        5, cardColor
-                );
-
-                // Индикатор включённого состояния
-                if (module.isEnabled()) {
+                if (hovered) {
                     RenderUtils.drawRoundedRect(
                             context,
-                            x + 11, rowY + 6,
-                            3, 8,
-                            2, ACCENT_COLOR
+                            x + 5, rowY,
+                            WINDOW_WIDTH - 10, ROW_CONTENT_HEIGHT,
+                            4, HOVER_COLOR
+                    );
+                }
+
+                if (module.isEnabled()) {
+                    context.fill(
+                            x + 7, rowY + 5,
+                            x + 9, rowY + 15,
+                            ACCENT_COLOR
                     );
                 }
 
                 context.drawTextWithShadow(
                         textRenderer,
                         module.getName(),
-                        x + 21,
+                        x + 15,
                         rowY + 6,
-                        module.isEnabled() ? 0xFFFFFFFF : 0xFF9AA4B2
+                        module.isEnabled() ? TEXT_COLOR : TEXT_DIM
                 );
-
-                if (module.isEnabled()) {
-                    context.fill(
-                            x + WINDOW_WIDTH - 18, rowY + 8,
-                            x + WINDOW_WIDTH - 13, rowY + 13,
-                            ACCENT_COLOR
-                    );
-                }
 
                 rowY += ROW_HEIGHT;
             }
-
-            // Подсказка внизу окна
-            context.drawTextWithShadow(
-                    textRenderer,
-                    "ЛКМ — переключить",
-                    x + 10,
-                    y + height - 13,
-                    0xFF687386
-            );
         }
 
         private boolean isMouseOverHeader(double mouseX, double mouseY) {
@@ -338,21 +222,14 @@ public class ClickGuiScreen extends Screen {
         }
 
         private Module getModuleAt(double mouseX, double mouseY) {
-            if (MyVisualsClient.moduleManager == null) {
-                return null;
-            }
-
-            int rowY = y + HEADER_HEIGHT + 6;
+            int rowY = y + HEADER_HEIGHT + 5;
 
             for (Module module :
-                    MyVisualsClient.moduleManager
-                            .getModulesByCategory(category)) {
-
-                boolean insideRow =
-                        mouseX >= x + 7
-                                && mouseX <= x + WINDOW_WIDTH - 7
-                                && mouseY >= rowY
-                                && mouseY <= rowY + ROW_HEIGHT_VISIBLE;
+                    MyVisualsClient.moduleManager.getModulesByCategory(category)) {
+                boolean insideRow = mouseX >= x + 5
+                        && mouseX <= x + WINDOW_WIDTH - 5
+                        && mouseY >= rowY
+                        && mouseY <= rowY + ROW_CONTENT_HEIGHT;
 
                 if (insideRow) {
                     return module;
@@ -377,5 +254,10 @@ public class ClickGuiScreen extends Screen {
                 && mouseX <= x + w
                 && mouseY >= y
                 && mouseY <= y + h;
+    }
+
+    @Override
+    public boolean shouldPause() {
+        return false;
     }
 }
