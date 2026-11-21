@@ -4,6 +4,8 @@ import com.myvisuals.MyVisualsClient;
 import com.myvisuals.module.Category;
 import com.myvisuals.module.Module;
 import com.myvisuals.modules.ChinaHatModule;
+import com.myvisuals.modules.JumpCirclesModule;
+import com.myvisuals.modules.TargetEspModule;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
@@ -80,10 +82,16 @@ public class ClickGuiScreen extends Screen {
 
             if (exp) {
                 ctx.fill(cX + 6, cY + 25, cX + colW - 6, cY + 26, new Color(255, 255, 255, 16).getRGB());
-                if (mod instanceof ChinaHatModule hat) {
+                String cName = null;
+                int cRgb = 0;
+                if (mod instanceof ChinaHatModule h) { cName = h.getCurrentColorName(); cRgb = h.getCurrentColor().getRGB(); }
+                else if (mod instanceof JumpCirclesModule j) { cName = j.getCurrentColorName(); cRgb = j.getCurrentColor().getRGB(); }
+                else if (mod instanceof TargetEspModule t) { cName = t.getCurrentColorName(); cRgb = t.getCurrentColor().getRGB(); }
+
+                if (cName != null) {
                     rect(ctx, cX + 6, cY + 29, colW - 12, 18, 4, new Color(255, 255, 255, 18).getRGB());
-                    ctx.drawTextWithShadow(this.textRenderer, "§7Цвет: §f" + hat.getCurrentColorName(), cX + 10, cY + 34, 0xFFFFFFFF);
-                    rect(ctx, cX + colW - 21, cY + 32, 11, 11, 3, hat.getCurrentColor().getRGB());
+                    ctx.drawTextWithShadow(this.textRenderer, "§7Цвет: §f" + cName, cX + 10, cY + 34, 0xFFFFFFFF);
+                    rect(ctx, cX + colW - 21, cY + 32, 11, 11, 3, cRgb);
                 } else {
                     String desc = mod.getDescription();
                     if (Integer.compare(desc.length(), 20) == 1) desc = desc.substring(0, 20) + "..";
@@ -112,7 +120,11 @@ public class ClickGuiScreen extends Screen {
         for (Module mod : MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory)) {
             boolean isLeft = (idx % 2 == 0), exp = (expandedModule == mod);
             int cX = isLeft ? contentX : contentX + colW + 6, cY = isLeft ? leftY : rightY, cH = exp ? 52 : 26;
-            if (exp && mod instanceof ChinaHatModule hat && inBox(mouseX, mouseY, cX + 6, cY + 29, colW - 12, 18)) { hat.nextColor(); return true; }
+            if (exp && inBox(mouseX, mouseY, cX + 6, cY + 29, colW - 12, 18)) {
+                if (mod instanceof ChinaHatModule h) { h.nextColor(); return true; }
+                if (mod instanceof JumpCirclesModule j) { j.nextColor(); return true; }
+                if (mod instanceof TargetEspModule t) { t.nextColor(); return true; }
+            }
             if (inBox(mouseX, mouseY, cX, cY, colW, 26)) {
                 if (button == 2 || button == 1 || inBox(mouseX, mouseY, cX + colW - 44, cY, 16, 26)) expandedModule = exp ? null : mod;
                 else if (button == 0) mod.toggle();
