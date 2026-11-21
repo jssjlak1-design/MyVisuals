@@ -12,6 +12,9 @@ import java.util.List;
 
 public class ClickGuiScreen extends Screen {
     private Category selectedCategory = Category.RENDER;
+    private Module expandedModule = null;
+    private int themeIndex = 0;
+    private final String[] themes = {"Тёмная", "Фиолетовая", "Рубин"};
 
     public ClickGuiScreen() {
         super(Text.literal("MyVisuals GUI"));
@@ -19,71 +22,114 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fillGradient(0, 0, this.width, this.height, new Color(10, 8, 22, 175).getRGB(), new Color(25, 12, 45, 195).getRGB());
+        context.fill(0, 0, this.width, this.height, new Color(0, 0, 0, 115).getRGB());
 
-        int guiWidth = 440;
-        int guiHeight = 275;
-        int x = (this.width - guiWidth) / 2;
-        int y = (this.height - guiHeight) / 2;
+        int guiW = 470;
+        int guiH = 285;
+        int x = (this.width - guiW) / 2;
+        int y = (this.height - guiH) / 2;
 
-        // Внешняя неоновая обводка
-        context.fill(x - 1, y - 1, x + guiWidth + 1, y + guiHeight + 1, new Color(138, 75, 255, 220).getRGB());
-        // Основной фон окна
-        context.fill(x, y, x + guiWidth, y + guiHeight, new Color(14, 14, 22, 248).getRGB());
-        // Левая панель категорий
-        context.fill(x, y, x + 115, y + guiHeight, new Color(20, 19, 32, 255).getRGB());
-        // Верхняя градиентная полоса
-        context.fillGradient(x, y, x + guiWidth, y + 4, new Color(135, 65, 255, 255).getRGB(), new Color(235, 75, 185, 255).getRGB());
+        // Цвета темы
+        Color accent = themeIndex == 0
+                ? new Color(225, 65, 65, 255)
+                : (themeIndex == 1 ? new Color(145, 80, 255, 255) : new Color(235, 75, 135, 255));
 
-        // Заголовок
-        context.drawTextWithShadow(this.textRenderer, "§lMY VISUALS", x + 16, y + 15, 0xFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§d1.20.4 PREMIUM", x + 16, y + 26, 0xBB88FF);
+        // Внешняя тонкая обводка и основное скруглённое матовое окно
+        drawRoundedRect(context, x - 1, y - 1, guiW + 2, guiH + 2, 10, new Color(255, 255, 255, 38).getRGB());
+        drawRoundedRect(context, x, y, guiW, guiH, 10, new Color(26, 27, 33, 228).getRGB());
 
-        // Кнопки категорий
-        int catY = y + 48;
+        // Левая боковая панель
+        int sideW = 108;
+        drawRoundedRect(context, x + 4, y + 4, sideW - 4, guiH - 8, 8, new Color(20, 21, 26, 215).getRGB());
+
+        // Логотип слева сверху
+        context.drawTextWithShadow(this.textRenderer, "§lMy Visuals", x + 16, y + 15, 0xFFF2F2F7);
+        context.fill(x + 14, y + 29, x + sideW - 10, y + 30, new Color(255, 255, 255, 22).getRGB());
+
+        // Секция категорий
+        context.drawTextWithShadow(this.textRenderer, "Модули", x + 16, y + 38, 0xFF7A7D8C);
+
+        int catY = y + 52;
         for (Category category : Category.values()) {
-            boolean isSelected = category == selectedCategory;
-            if (isSelected) {
-                context.fillGradient(x + 10, catY, x + 105, catY + 28, new Color(125, 65, 255, 230).getRGB(), new Color(195, 70, 215, 230).getRGB());
-                context.fill(x + 10, catY, x + 13, catY + 28, 0xFFFFFFFF);
-            } else {
-                context.fill(x + 10, catY, x + 105, catY + 28, new Color(28, 27, 44, 210).getRGB());
+            boolean selected = category == selectedCategory;
+            if (selected) {
+                drawRoundedRect(context, x + 10, catY, sideW - 16, 22, 6, new Color(255, 255, 255, 24).getRGB());
+                drawRoundedRect(context, x + 10, catY + 4, 3, 14, 2, accent.getRGB());
             }
-
-            context.drawTextWithShadow(this.textRenderer, category.getName(), x + 20, catY + 10, isSelected ? 0xFFFFFF : 0x9999B5);
-            catY += 35;
+            context.drawTextWithShadow(this.textRenderer, category.getName(), x + 20, catY + 7, selected ? 0xFFFFFFFF : 0xFF9EA2B2);
+            catY += 26;
         }
 
-        // Карточки модулей
+        // Карточка профиля игрока внизу левой панели (как на скриншоте)
+        int profY = y + guiH - 36;
+        drawRoundedRect(context, x + 10, profY, sideW - 16, 26, 6, new Color(255, 255, 255, 14).getRGB());
+        drawRoundedRect(context, x + 14, profY + 5, 16, 16, 4, accent.getRGB());
+        String nick = (this.client != null && this.client.getSession() != null) ? this.client.getSession().getUsername() : "Player";
+        if (nick.length() > 10) nick = nick.substring(0, 10);
+        context.drawTextWithShadow(this.textRenderer, nick, x + 34, profY + 5, 0xFFFFFFFF);
+        context.drawTextWithShadow(this.textRenderer, "User", x + 34, profY + 14, 0xFF7E8292);
+
+        // Верхняя панель пути ("Модули > Render") и кнопка смены темы
+        int contentX = x + sideW + 10;
+        int contentW = guiW - sideW - 18;
+        drawRoundedRect(context, contentX, y + 8, contentW, 24, 6, new Color(255, 255, 255, 12).getRGB());
+        context.drawTextWithShadow(this.textRenderer, "§7Модули  ›  §f" + selectedCategory.getName(), contentX + 10, y + 16, 0xFFFFFFFF);
+
+        // Кнопка выбора темы справа в шапке
+        String themeLabel = "Тема: " + themes[themeIndex];
+        int tBtnW = this.textRenderer.getWidth(themeLabel) + 14;
+        int tBtnX = contentX + contentW - tBtnW - 6;
+        drawRoundedRect(context, tBtnX, y + 11, tBtnW, 18, 5, new Color(255, 255, 255, 20).getRGB());
+        context.drawTextWithShadow(this.textRenderer, themeLabel, tBtnX + 7, y + 16, 0xFFDCDCE6);
+
+        // Двухколоночная сетка карточек модулей
         List<Module> modules = MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory);
-        int modY = y + 18;
-        for (Module module : modules) {
-            boolean hovered = mouseX >= x + 128 && mouseX <= x + guiWidth - 14 && mouseY >= modY && mouseY <= modY + 34;
-            int cardBg = module.isEnabled()
-                    ? new Color(36, 28, 62, 240).getRGB()
-                    : (hovered ? new Color(32, 31, 48, 235).getRGB() : new Color(22, 22, 34, 225).getRGB());
+        int colW = (contentW - 8) / 2;
+        int leftY = y + 40;
+        int rightY = y + 40;
 
-            // Рамка карточки
-            if (module.isEnabled()) {
-                context.fill(x + 127, modY - 1, x + guiWidth - 13, modY + 35, new Color(145, 80, 255, 190).getRGB());
+        for (int i = 0; i < modules.size(); i++) {
+            Module mod = modules.get(i);
+            boolean isLeft = (i % 2 == 0);
+            int cardX = isLeft ? contentX : contentX + colW + 8;
+            int cardY = isLeft ? leftY : rightY;
+            boolean isExpanded = (expandedModule == mod);
+            int cardH = isExpanded ? 54 : 28;
+
+            boolean hovered = mouseX >= cardX && mouseX <= cardX + colW && mouseY >= cardY && mouseY <= cardY + cardH;
+            int bg = mod.isEnabled()
+                    ? new Color(42, 43, 54, 235).getRGB()
+                    : (hovered ? new Color(36, 37, 46, 225).getRGB() : new Color(30, 31, 39, 215).getRGB());
+
+            drawRoundedRect(context, cardX, cardY, colW, cardH, 6, bg);
+            if (mod.isEnabled()) {
+                drawRoundedRect(context, cardX, cardY + 6, 2, 16, 1, accent.getRGB());
             }
-            context.fill(x + 128, modY, x + guiWidth - 14, modY + 34, cardBg);
 
-            // Цветной индикатор слева
-            int barColor = module.isEnabled() ? new Color(165, 90, 255, 255).getRGB() : new Color(65, 65, 85, 255).getRGB();
-            context.fill(x + 128, modY, x + 132, modY + 34, barColor);
+            // Название модуля
+            context.drawTextWithShadow(this.textRenderer, mod.getName(), cardX + 9, cardY + 10, mod.isEnabled() ? 0xFFFFFFFF : 0xFFB8BCCB);
 
-            // Название и описание
-            context.drawTextWithShadow(this.textRenderer, module.getName(), x + 140, modY + 7, module.isEnabled() ? 0xFFFFFF : 0xBBBBCC);
-            context.drawTextWithShadow(this.textRenderer, module.getDescription(), x + 140, modY + 20, 0x8888A0);
+            // Тумблер-переключатель справа (как в Fixxed Visuals)
+            int swW = 24;
+            int swH = 12;
+            int swX = cardX + colW - swW - 8;
+            int swY = cardY + 8;
+            int swBg = mod.isEnabled() ? accent.getRGB() : new Color(55, 57, 68, 255).getRGB();
+            drawRoundedRect(context, swX, swY, swW, swH, 6, swBg);
 
-            // Переключатель ON / OFF справа
-            String stateText = module.isEnabled() ? "ON" : "OFF";
-            int pillColor = module.isEnabled() ? new Color(135, 65, 255, 240).getRGB() : new Color(45, 45, 60, 240).getRGB();
-            context.fill(x + guiWidth - 52, modY + 9, x + guiWidth - 22, modY + 25, pillColor);
-            context.drawTextWithShadow(this.textRenderer, stateText, x + guiWidth - 44, modY + 13, module.isEnabled() ? 0xFFFFFF : 0x888899);
+            int knobX = mod.isEnabled() ? (swX + swW - 10) : (swX + 2);
+            drawRoundedRect(context, knobX, swY + 2, 8, 8, 4, 0xFFFFFFFF);
 
-            modY += 40;
+            // Раскрывающееся описание/настройка (при нажатии правой кнопкой или по нижней части)
+            if (isExpanded) {
+                context.fill(cardX + 8, cardY + 27, cardX + colW - 8, cardY + 28, new Color(255, 255, 255, 18).getRGB());
+                String desc = mod.getDescription();
+                if (desc.length() > 26) desc = desc.substring(0, 26) + "...";
+                context.drawTextWithShadow(this.textRenderer, desc, cardX + 9, cardY + 35, 0xFF8C90A0);
+            }
+
+            if (isLeft) leftY += cardH + 6;
+            else rightY += cardH + 6;
         }
 
         super.render(context, mouseX, mouseY, delta);
@@ -91,33 +137,80 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int guiWidth = 440;
-        int guiHeight = 275;
-        int x = (this.width - guiWidth) / 2;
-        int y = (this.height - guiHeight) / 2;
+        int guiW = 470;
+        int guiH = 285;
+        int x = (this.width - guiW) / 2;
+        int y = (this.height - guiH) / 2;
+        int sideW = 108;
 
-        int catY = y + 48;
+        // Клик по категориям
+        int catY = y + 52;
         for (Category category : Category.values()) {
-            if (mouseX >= x + 10 && mouseX <= x + 105 && mouseY >= catY && mouseY <= catY + 28) {
+            if (mouseX >= x + 10 && mouseX <= x + sideW - 6 && mouseY >= catY && mouseY <= catY + 22) {
                 selectedCategory = category;
+                expandedModule = null;
                 return true;
             }
-            catY += 35;
+            catY += 26;
         }
 
+        int contentX = x + sideW + 10;
+        int contentW = guiW - sideW - 18;
+
+        // Клик по кнопке смены темы
+        String themeLabel = "Тема: " + themes[themeIndex];
+        int tBtnW = this.textRenderer.getWidth(themeLabel) + 14;
+        int tBtnX = contentX + contentW - tBtnW - 6;
+        if (mouseX >= tBtnX && mouseX <= tBtnX + tBtnW && mouseY >= y + 11 && mouseY <= y + 29) {
+            themeIndex = (themeIndex + 1) % themes.length;
+            return true;
+        }
+
+        // Клик по карточкам модулей
         List<Module> modules = MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory);
-        int modY = y + 18;
-        for (Module module : modules) {
-            if (mouseX >= x + 128 && mouseX <= x + guiWidth - 14 && mouseY >= modY && mouseY <= modY + 34) {
+        int colW = (contentW - 8) / 2;
+        int leftY = y + 40;
+        int rightY = y + 40;
+
+        for (int i = 0; i < modules.size(); i++) {
+            Module mod = modules.get(i);
+            boolean isLeft = (i % 2 == 0);
+            int cardX = isLeft ? contentX : contentX + colW + 8;
+            int cardY = isLeft ? leftY : rightY;
+            boolean isExpanded = (expandedModule == mod);
+            int cardH = isExpanded ? 54 : 28;
+
+            if (mouseX >= cardX && mouseX <= cardX + colW && mouseY >= cardY && mouseY <= cardY + cardH) {
                 if (button == 0) {
-                    module.toggle();
+                    mod.toggle();
+                } else if (button == 1) {
+                    expandedModule = isExpanded ? null : mod;
                 }
                 return true;
             }
-            modY += 40;
+
+            if (isLeft) leftY += cardH + 6;
+            else rightY += cardH + 6;
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    // Отрисовка аккуратного скруглённого прямоугольника
+    private void drawRoundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        if (w <= 0 || h <= 0) return;
+        int radius = Math.min(r, Math.min(w / 2, h / 2));
+        ctx.fill(x + radius, y, x + w - radius, y + h, color);
+        ctx.fill(x, y + radius, x + radius, y + h - radius, color);
+        ctx.fill(x + w - radius, y + radius, x + w, y + h - radius, color);
+
+        for (int i = 0; i < radius; i++) {
+            int offset = radius - (int) Math.round(Math.sqrt(radius * radius - (radius - i) * (radius - i)));
+            ctx.fill(x + offset, y + i, x + radius, y + i + 1, color);
+            ctx.fill(x + w - radius, y + i, x + w - offset, y + i + 1, color);
+            ctx.fill(x + offset, y + h - i - 1, x + radius, y + h - i, color);
+            ctx.fill(x + w - radius, y + h - i - 1, x + w - offset, y + h - i, color);
+        }
     }
 
     @Override
