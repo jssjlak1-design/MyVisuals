@@ -30,7 +30,7 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
-    // Статический метод для получения модулей по категории
+    // Статический метод для получения модулей по категории (нужен для Panel.java)
     public static List<Module> getModules(Category category) {
         List<Module> result = new ArrayList<>();
         for (Module m : MyVisualsClient.moduleManager.getModules()) {
