@@ -2,13 +2,13 @@ package com.myvisuals.gui;
 
 import com.myvisuals.module.Category;
 import com.myvisuals.module.Module;
-import com.myvisuals.module.Setting;
 import com.myvisuals.utils.Animation;
 import com.myvisuals.utils.ColorUtils;
 import com.myvisuals.utils.RenderUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -34,6 +34,7 @@ public class Panel {
 
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         TextRenderer tr = mc.textRenderer;
+        // Получаем модули через статический метод ClickGuiScreen
         List<Module> modules = ClickGuiScreen.getModules(category);
         
         // Обновляем анимации
@@ -136,11 +137,6 @@ public class Panel {
                     return true;
                 }
             }
-        } else if (button == 1) {
-            // ПКМ по модулю — открыть настройки (заглушка)
-            if (!collapsed && isOverModules(mouseX, mouseY)) {
-                return true;
-            }
         }
         return false;
     }
@@ -179,10 +175,10 @@ public class Panel {
     private boolean hasShiftDown() {
         return net.minecraft.client.util.InputUtil.isKeyPressed(
             mc.getWindow().getHandle(), 
-            net.minecraft.glfw.GLFW.GLFW_KEY_LEFT_SHIFT
+            GLFW.GLFW_KEY_LEFT_SHIFT
         ) || net.minecraft.client.util.InputUtil.isKeyPressed(
             mc.getWindow().getHandle(), 
-            net.minecraft.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
+            GLFW.GLFW_KEY_RIGHT_SHIFT
         );
     }
 }
