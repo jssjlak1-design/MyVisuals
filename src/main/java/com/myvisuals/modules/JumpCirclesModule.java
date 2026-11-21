@@ -19,14 +19,15 @@ import java.util.Iterator;
 import java.util.List;
 
 public class JumpCirclesModule extends Module {
+    private static class Circle {
+        final double x, y, z;
+        final long time;
+        Circle(double x, double y, double z, long time) { this.x = x; this.y = y; this.z = z; this.time = time; }
+    }
+
     private final List circles = new ArrayList();
     private boolean wasOnGround = true;
     private int colorIndex = 1;
-    private final String[] colorNames = {"Красный", "Фиолетовый", "Голубой", "Изумруд", "Золотой", "Радужный"};
-    private final Color[] palette = {
-            new Color(235, 65, 65), new Color(155, 75, 255), new Color(55, 195, 255),
-            new Color(55, 230, 135), new Color(255, 195, 55), new Color(255, 80, 180)
-    };
 
     public JumpCirclesModule() {
         super("JumpCircles", "Неоновые волны под ногами при прыжке", Category.RENDER);
@@ -36,15 +37,27 @@ public class JumpCirclesModule extends Module {
         });
     }
 
-    public void nextColor() { colorIndex = (colorIndex + 1) % colorNames.length; }
-    public String getCurrentColorName() { return colorNames[colorIndex]; }
+    public void nextColor() { colorIndex = (colorIndex + 1) % 6; }
+
+    public String getCurrentColorName() {
+        if (colorIndex == 0) return "Красный";
+        if (colorIndex == 1) return "Фиолетовый";
+        if (colorIndex == 2) return "Голубой";
+        if (colorIndex == 3) return "Изумруд";
+        if (colorIndex == 4) return "Золотой";
+        return "Радужный";
+    }
 
     public Color getCurrentColor() {
         if (colorIndex == 5) {
             float hue = (System.currentTimeMillis() % 3000L) / 3000.0f;
             return new Color(Color.HSBtoRGB(hue, 0.85f, 1.0f));
         }
-        return palette[colorIndex];
+        if (colorIndex == 0) return new Color(235, 65, 65);
+        if (colorIndex == 1) return new Color(155, 75, 255);
+        if (colorIndex == 2) return new Color(55, 195, 255);
+        if (colorIndex == 3) return new Color(55, 230, 135);
+        return new Color(255, 195, 55);
     }
 
     @Override
@@ -52,7 +65,7 @@ public class JumpCirclesModule extends Module {
         if (mc.player == null) return;
         boolean onGround = mc.player.isOnGround();
         if (wasOnGround && !onGround && Float.compare((float) mc.player.getVelocity().y, 0.1f) == 1) {
-            circles.add(new double[]{mc.player.getX(), mc.player.getY() + 0.03, mc.player.getZ(), System.currentTimeMillis()});
+            circles.add(new Circle(mc.player.getX(), mc.player.getY() + 0.03, mc.player.getZ(), System.currentTimeMillis()));
         }
         wasOnGround = onGround;
     }
@@ -70,12 +83,9 @@ public class JumpCirclesModule extends Module {
 
         Iterator it = circles.iterator();
         while (it.hasNext()) {
-            double[] c = (double[]) it.next();
-            float progress = (now - (long) c) / 1100.0f;
-            if (Float.compare(progress, 1.0f) != -1) {
-                it.remove();
-                continue;
-            }
+            Circle c = (Circle) it.next();
+            float progress = (now - c.time) / 1100.0f;
+            if (Float.compare(progress, 1.0f) != -1) { it.remove(); continue; }
 
             float ease = 1.0f - (1.0f - progress) * (1.0f - progress);
             float outerR = 0.25f + ease * 1.35f;
@@ -83,12 +93,11 @@ public class JumpCirclesModule extends Module {
             float alpha = (1.0f - progress) * 0.85f;
 
             matrices.push();
-            matrices.translate(c - cam.x, c - cam.y, c - cam.z);
+            matrices.translate(c.x - cam.x, c.y - cam.y, c.z - cam.z);
             Matrix4f mat = matrices.peek().getPositionMatrix();
             Tessellator tess = Tessellator.getInstance();
             BufferBuilder buf = tess.getBuffer();
 
-            // Градиентное неоновое кольцо
             buf.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
             for (int i = 0; i != 65; i++) {
                 double ang = 2.0 * Math.PI * i / 64.0;
@@ -98,7 +107,6 @@ public class JumpCirclesModule extends Module {
             }
             tess.draw();
 
-            // Яркий белый блик по внешнему краю
             buf.begin(VertexFormat.DrawMode.DEBUG_LINE_STRIP, VertexFormats.POSITION_COLOR);
             for (int i = 0; i != 65; i++) {
                 double ang = 2.0 * Math.PI * i / 64.0;
