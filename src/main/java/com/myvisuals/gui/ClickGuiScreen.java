@@ -3,13 +3,11 @@ package com.myvisuals.gui;
 import com.myvisuals.MyVisualsClient;
 import com.myvisuals.module.Category;
 import com.myvisuals.module.Module;
-import com.myvisuals.module.Setting;
 import com.myvisuals.modules.GuiSoundsModule;
 import com.myvisuals.utils.RenderUtils;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +18,7 @@ public class ClickGuiScreen extends Screen {
     private double dragOffsetX, dragOffsetY;
     
     // Цвета для стиля "Стекло"
-    private static final int GLASS_BG = RenderUtils.getColor(20, 25, 30, 180); // Темный полупрозрачный
-    private static final int GLASS_BORDER = RenderUtils.getColor(100, 150, 255, 80); // Голубая обводка
+    private static final int GLASS_BG = RenderUtils.getColor(20, 25, 30, 180);
     private static final int ACCENT_COLOR = RenderUtils.getColor(0, 200, 255, 255);
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int TEXT_DIM = 0xFFAAAAAA;
@@ -29,7 +26,7 @@ public class ClickGuiScreen extends Screen {
     public ClickGuiScreen() {
         super(Text.literal("MyVisuals ClickGUI"));
         
-        // Инициализация окон для каждой категории
+        // Инициализация окон
         int startX = 50;
         int gap = 220;
         for (Category cat : Category.values()) {
@@ -39,7 +36,7 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // Рисуем затемненный фон (опционально, можно убрать для чистого стекла)
+        // Затемненный фон
         ctx.fillGradient(0, 0, this.width, this.height, 0x80000000, 0x80000000);
 
         // Рисуем окна
@@ -53,34 +50,22 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // Проверяем клик по окнам (в обратном порядке, чтобы верхнее было активным)
         for (Window window : windows.values()) {
+            // Проверка клика по заголовку (для перетаскивания)
             if (window.isMouseOverHeader(mouseX, mouseY)) {
                 if (hasShiftDown()) {
-                    // Начало перетаскивания
                     draggedWindow = window;
                     dragOffsetX = mouseX - window.x;
                     dragOffsetY = mouseY - window.y;
-                } else if (button == 0) {
-                    // Клик по заголовку без Shift — ничего не делаем или сворачиваем (по желанию)
                 }
                 return true;
             }
             
-            // Клик по модулям внутри окна
+            // Проверка клика по модулю
             if (window.isMouseOverContent(mouseX, mouseY)) {
                 Module clickedModule = window.getModuleAt(mouseX, mouseY);
                 if (clickedModule != null) {
                     clickedModule.toggle();
-                    playSound();
-                    return true;
-                }
-                
-                // Клик по настройкам (простая реализация: переключение первого boolean setting)
-                Setting<?> clickedSetting = window.getSettingAt(mouseX, mouseY);
-                if (clickedSetting != null && clickedSetting.getValue() instanceof Boolean) {
-                    Boolean current = (Boolean) clickedSetting.getValue();
-                    clickedSetting.setValue(!current);
                     playSound();
                     return true;
                 }
@@ -112,13 +97,12 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
-    // Внутренний класс для окна категории
+    // Внутренний класс окна
     private class Window {
         private final Category category;
         private int x, y;
         private final int width = 200;
-        private int height = 0; // Вычисляется динамически
-        private boolean expanded = true;
+        private int height = 0;
 
         public Window(Category category, int x, int y) {
             this.category = category;
@@ -127,52 +111,38 @@ public class ClickGuiScreen extends Screen {
         }
 
         public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            // Вычисляем высоту окна
             int moduleCount = MyVisualsClient.moduleManager.getModulesByCategory(category).size();
-            this.height = 25 + (moduleCount * 22) + 10; // Заголовок + модули + отступ
+            this.height = 25 + (moduleCount * 22) + 10;
 
-            // Рисуем фон окна (Стекло)
+            // Фон окна (Стекло)
             RenderUtils.drawRoundedRect(ctx, x, y, width, height, 8, GLASS_BG);
             
-            // Рисуем обводку (для эффекта свечения)
-            // Можно использовать ctx.drawBorder, но fill с градиентом выглядит лучше для стекла
-            ctx.fill(x, y, x + width, y + 2, ACCENT_COLOR); // Верхняя полоска акцента
+            // Акцентная полоска сверху
+            ctx.fill(x, y, x + width, y + 2, ACCENT_COLOR);
 
-            // Заголовок
-            String title = category.getName();
-            ctx.drawTextWithShadow(textRenderer, title, x + 10, y + 8, category.getColor());
+            // Заголовок с цветом категории
+            int catColor = category.getColor(); 
+            ctx.drawTextWithShadow(textRenderer, category.getName(), x + 10, y + 8, catColor);
 
             // Список модулей
-            if (expanded) {
-                int currentY = y + 30;
-                for (Module module : MyVisualsClient.moduleManager.getModulesByCategory(category)) {
-                    boolean hovered = isMouseOver(mouseX, mouseY, x + 5, currentY, width - 10, 20);
-                    
-                    // Фон кнопки
-                    int btnColor = hovered ? RenderUtils.getColor(255, 255, 255, 30) : RenderUtils.getColor(255, 255, 255, 0);
-                    RenderUtils.drawRoundedRect(ctx, x + 5, currentY, width - 10, 20, 4, btnColor);
+            int currentY = y + 30;
+            for (Module module : MyVisualsClient.moduleManager.getModulesByCategory(category)) {
+                boolean hovered = isMouseOver(mouseX, mouseY, x + 5, currentY, width - 10, 20);
+                
+                // Подсветка при наведении
+                int btnColor = hovered ? RenderUtils.getColor(255, 255, 255, 30) : RenderUtils.getColor(255, 255, 255, 0);
+                RenderUtils.drawRoundedRect(ctx, x + 5, currentY, width - 10, 20, 4, btnColor);
 
-                    // Индикатор включения (слева)
-                    if (module.isEnabled()) {
-                        ctx.fill(x + 7, currentY + 5, x + 9, currentY + 15, ACCENT_COLOR);
-                    }
-
-                    // Текст названия
-                    int textColor = module.isEnabled() ? TEXT_COLOR : TEXT_DIM;
-                    ctx.drawTextWithShadow(textRenderer, module.getName(), x + 15, currentY + 6, textColor);
-
-                    // Отображение первой настройки (если есть boolean)
-                    if (!module.getSettings().isEmpty()) {
-                        Setting<?> firstSetting = module.getSettings().get(0);
-                        if (firstSetting.getValue() instanceof Boolean) {
-                            String valText = (Boolean) firstSetting.getValue() ? "[ON]" : "[OFF]";
-                            ctx.drawTextWithShadow(textRenderer, valText, x + width - 45, currentY + 6, 
-                                (Boolean) firstSetting.getValue() ? ACCENT_COLOR : TEXT_DIM);
-                        }
-                    }
-
-                    currentY += 22;
+                // Индикатор включения
+                if (module.isEnabled()) {
+                    ctx.fill(x + 7, currentY + 5, x + 9, currentY + 15, ACCENT_COLOR);
                 }
+
+                // Название модуля
+                int textColor = module.isEnabled() ? TEXT_COLOR : TEXT_DIM;
+                ctx.drawTextWithShadow(textRenderer, module.getName(), x + 15, currentY + 6, textColor);
+
+                currentY += 22;
             }
         }
 
@@ -194,12 +164,6 @@ public class ClickGuiScreen extends Screen {
                 currentY += 22;
             }
             return null;
-        }
-        
-        public Setting<?> getSettingAt(double mx, double my) {
-             // Упрощенная логика: если кликнули правее названия, пытаемся переключить первую настройку
-             // В полноценном GUI здесь нужна более сложная проверка координат
-             return null; 
         }
     }
 
