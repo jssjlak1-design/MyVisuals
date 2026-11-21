@@ -2,33 +2,24 @@ package com.myvisuals.modules;
 
 import com.myvisuals.module.Category;
 import com.myvisuals.module.Module;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 
 public class FullBrightModule extends Module {
-    private double previousGamma = 1.0;
-
     public FullBrightModule() {
-        super("FullBright", "Светло в пещерах и ночью", Category.RENDER);
-    }
-
-    @Override
-    public void onEnable() {
-        if (mc.options != null) {
-            previousGamma = mc.options.getGamma().getValue();
-            mc.options.getGamma().setValue(16.0);
-        }
-    }
-
-    @Override
-    public void onDisable() {
-        if (mc.options != null) {
-            mc.options.getGamma().setValue(previousGamma);
-        }
+        super("FullBright", "Яркое ночное зрение без темноты", Category.RENDER);
     }
 
     @Override
     public void onTick() {
-        if (mc.options != null && mc.options.getGamma().getValue() < 16.0) {
-            mc.options.getGamma().setValue(16.0);
+        if (mc.player == null) return;
+        mc.player.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 400, 0, false, false, false));
+    }
+
+    @Override
+    public void onDisable() {
+        if (mc.player != null) {
+            mc.player.removeStatusEffect(StatusEffects.NIGHT_VISION);
         }
     }
 }
