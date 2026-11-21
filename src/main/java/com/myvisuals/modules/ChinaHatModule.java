@@ -3,39 +3,75 @@ package com.myvisuals.modules;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.myvisuals.module.Category;
 import com.myvisuals.module.Module;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.*;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 import java.awt.Color;
 
 public class ChinaHatModule extends Module {
+    private int colorIndex = 0;
+    private final String[] colorNames = {"Красный", "Фиолетовый", "Голубой", "Изумруд", "Золотой", "Радужный"};
+    private final Color[] palette = {
+            new Color(235, 65, 65, 190),
+            new Color(155, 75, 255, 190),
+            new Color(55, 195, 255, 190),
+            new Color(55, 230, 135, 190),
+            new Color(255, 195, 55, 190),
+            new Color(255, 80, 180, 190)
+    };
+
     public ChinaHatModule() {
-        super("ChinaHat", "Неоновая шляпа над головой", Category.RENDER);
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(this::onRender);
+        super("ChinaHat", "Неоновая конусная шляпа над головой", Category.RENDER);
+
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
+            if (!isEnabled() || mc.player == null) return;
+            if (mc.options.getPerspective().isFirstPerson()) return;
+            renderHat(context.matrixStack(), context.camera().getPos(), context.tickDelta());
+        });
     }
 
-    private void onRender(WorldRenderContext context) {
-        if (!isEnabled() || mc.player == null) return;
-        // Показываем шляпу от 3-го лица (F5)
-        if (mc.options.getPerspective().isFirstPerson()) return;
+    public void nextColor() {
+        colorIndex = (colorIndex + 1) % colorNames.length;
+    }
 
-        float tickDelta = context.tickDelta();
-        Vec3d cam = context.camera().getPos();
+    public String getCurrentColorName() {
+        return colorNames[colorIndex];
+    }
 
-        double x = MathHelper.lerp(tickDelta, mc.player.prevX, mc.player.getX()) - cam.x;
-        double y = MathHelper.lerp(tickDelta, mc.player.prevY, mc.player.getY()) - cam.y + mc.player.getHeight() + 0.05;
-        double z = MathHelper.lerp(tickDelta, mc.player.prevZ, mc.player.getZ()) - cam.z;
+    public Color getCurrentColor() {
+        if (colorIndex == 5) {
+            float hue = (System.currentTimeMillis() % 3000L) / 3000.0f;
+            int rgb = Color.HSBtoRGB(hue, 0.85f, 1.0f);
+            Color base = new Color(rgb);
+            return new Color(base.getRed(), base.getGreen(), base.getBlue(), 195);
+        }
+        return palette[colorIndex];
+    }
 
-        if (mc.player.isInSneakingPose()) {
-            y -= 0.2;
+    private void renderHat(MatrixStack matrices, Vec3d camPos, float tickDelta) {
+        if (mc.player == null) return;
+
+        double x = mc.player.prevX + (mc.player.getX() - mc.player.prevX) * tickDelta - camPos.x;
+        double y = mc.player.prevY + (mc.player.getY() - mc.player.prevY) * tickDelta - camPos.y + mc.player.getHeight() + 0.05;
+        double z = mc.player.prevZ + (mc.player.getZ() - mc.player.prevZ) * tickDelta - camPos.z;
+
+        if (mc.player.isSneaking()) {
+            y -= 0.15;
         }
 
-        MatrixStack matrices = context.matrixStack();
+        Color c = getCurrentColor();
+        float r = c.getRed() / 255.0f;
+        float g = c.getGreen() / 255.0f;
+        float b = c.getBlue() / 255.0f;
+        float a = c.getAlpha() / 255.0f;
+
         matrices.push();
         matrices.translate(x, y, z);
 
@@ -46,49 +82,35 @@ public class ChinaHatModule extends Module {
 
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Matrix4f mat = matrices.peek().getPositionMatrix();
 
-        float radius = 0.55f;
-        float height = 0.28f;
+        float radius = 0.62f;
+        float height = 0.34f;
         int segments = 48;
 
-        // Рисуем сам конус шляпы с переливом цвета
+        // Конус шляпы
         buffer.begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_COLOR);
-        Color topColor = getRainbowColor(0);
-        buffer.vertex(matrix, 0, height, 0)
-                .color(topColor.getRed(), topColor.getGreen(), topColor.getBlue(), 190).next();
-
+        buffer.vertex(mat, 0.0f, height, 0.0f).color(r, g, b, Math.min(1.0f, a + 0.2f)).next();
         for (int i = 0; i <= segments; i++) {
             double angle = 2.0 * Math.PI * i / segments;
-            float cos = (float) Math.cos(angle) * radius;
-            float sin = (float) Math.sin(angle) * radius;
-            Color edgeColor = getRainbowColor(i * 15);
-
-            buffer.vertex(matrix, cos, 0, sin)
-                    .color(edgeColor.getRed(), edgeColor.getGreen(), edgeColor.getBlue(), 150).next();
+            float px = (float) (Math.cos(angle) * radius);
+            float pz = (float) (Math.sin(angle) * radius);
+            buffer.vertex(mat, px, 0.0f, pz).color(r, g, b, a * 0.65f).next();
         }
         tessellator.draw();
 
-        // Светящийся ободок по краю шляпы
+        // Яркий светящийся ободок по краю шляпы
         buffer.begin(VertexFormat.DrawMode.DEBUG_LINE_STRIP, VertexFormats.POSITION_COLOR);
         for (int i = 0; i <= segments; i++) {
             double angle = 2.0 * Math.PI * i / segments;
-            float cos = (float) Math.cos(angle) * radius;
-            float sin = (float) Math.sin(angle) * radius;
-            Color lineColor = getRainbowColor(i * 15);
-
-            buffer.vertex(matrix, cos, 0, sin)
-                    .color(lineColor.getRed(), lineColor.getGreen(), lineColor.getBlue(), 255).next();
+            float px = (float) (Math.cos(angle) * radius);
+            float pz = (float) (Math.sin(angle) * radius);
+            buffer.vertex(mat, px, 0.0f, pz).color(1.0f, 1.0f, 1.0f, 0.9f).next();
         }
         tessellator.draw();
 
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
         matrices.pop();
-    }
-
-    private Color getRainbowColor(int offset) {
-        float hue = ((System.currentTimeMillis() + offset) % 3000L) / 3000.0f;
-        return Color.getHSBColor(hue, 0.75f, 1.0f);
     }
 }
