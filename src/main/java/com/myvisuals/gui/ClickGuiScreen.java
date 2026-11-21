@@ -9,255 +9,128 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 public class ClickGuiScreen extends Screen {
-    private static final int WINDOW_WIDTH = 200;
-    private static final int HEADER_HEIGHT = 25;
-    private static final int ROW_HEIGHT = 22;
-    private static final int ROW_CONTENT_HEIGHT = 20;
+    
+    // Цвета в стиле Expensive
+    private static final int BG_COLOR = RenderUtils.getColor(15, 15, 20, 240);
+    private static final int PANEL_BG = RenderUtils.getColor(25, 25, 35, 200);
+    private static final int ACCENT_COLOR = RenderUtils.getColor(100, 100, 255, 255); // Синий акцент
+    private static final int TEXT_ON = 0xFFFFFFFF;
+    private static final int TEXT_OFF = 0xFF666666;
+    private static final int HOVER_COLOR = RenderUtils.getColor(255, 255, 255, 20);
 
-    private static final int GLASS_BG = RenderUtils.getColor(20, 25, 30, 180);
-    private static final int ACCENT_COLOR = RenderUtils.getColor(0, 200, 255, 255);
-    private static final int TEXT_COLOR = 0xFFFFFFFF;
-    private static final int TEXT_DIM = 0xFFAAAAAA;
-    private static final int HOVER_COLOR = RenderUtils.getColor(255, 255, 255, 30);
-
-    private final Map<Category, Window> windows = new LinkedHashMap<>();
-
-    private Window draggedWindow;
-    private double dragOffsetX;
-    private double dragOffsetY;
+    private Category selectedCategory = Category.COMBAT;
 
     public ClickGuiScreen() {
-        super(Text.literal("MyVisuals ClickGUI"));
-
-        int startX = 50;
-        int gap = 220;
-
-        for (Category category : Category.values()) {
-            int x = startX + category.ordinal() * gap;
-            windows.put(category, new Window(category, x, 50));
-        }
+        super(Text.literal("MyVisuals"));
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fillGradient(0, 0, width, height, 0x80000000, 0x80000000);
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        // Фон
+        ctx.fill(0, 0, this.width, this.height, BG_COLOR);
 
-        for (Window window : windows.values()) {
-            window.render(context, mouseX, mouseY);
+        // Заголовок
+        ctx.drawTextWithShadow(this.textRenderer, "§b§lMyVisuals", 20, 20, ACCENT_COLOR);
+        ctx.drawTextWithShadow(this.textRenderer, "§71.20.4", 20, 32, 0xFF888888);
+
+        // Панель категорий (горизонтально сверху)
+        int catX = 150;
+        int catY = 25;
+        for (Category cat : Category.values()) {
+            boolean isSelected = (cat == selectedCategory);
+            boolean isHovered = (mouseX >= catX && mouseX <= catX + 80 && mouseY >= catY && mouseY <= catY + 20);
+
+            if (isSelected) {
+                ctx.fill(catX, catY + 18, catX + 80, catY + 20, ACCENT_COLOR); // Подчеркивание
+            }
+
+            int textColor = isSelected ? TEXT_ON : (isHovered ? 0xFFCCCCCC : TEXT_OFF);
+            ctx.drawTextWithShadow(this.textRenderer, cat.getName(), catX + 5, catY + 6, textColor);
+
+            catX += 90;
         }
 
-        context.drawTextWithShadow(
-                textRenderer,
-                "Shift + ЛКМ — перемещение окна",
-                10,
-                height - 20,
-                TEXT_DIM
-        );
+        // Панель модулей (вертикально слева)
+        int panelX = 20;
+        int panelY = 70;
+        int panelWidth = 180;
+        
+        int moduleCount = MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory).size();
+        int panelHeight = 30 + (moduleCount * 22) + 10;
 
-        super.render(context, mouseX, mouseY, delta);
+        RenderUtils.drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 4, PANEL_BG);
+
+        // Заголовок панели
+        ctx.drawTextWithShadow(this.textRenderer, selectedCategory.getName(), panelX + 10, panelY + 8, ACCENT_COLOR);
+        ctx.fill(panelX, panelY + 20, panelX + panelWidth, panelY + 21, RenderUtils.getColor(255, 255, 255, 30));
+
+        // Список модулей
+        int currentY = panelY + 30;
+        for (Module module : MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory)) {
+            boolean isHovered = (mouseX >= panelX + 5 && mouseX <= panelX + panelWidth - 5 && 
+                                 mouseY >= currentY && mouseY <= currentY + 20);
+
+            if (isHovered) {
+                RenderUtils.drawRoundedRect(ctx, panelX + 5, currentY, panelWidth - 10, 20, 3, HOVER_COLOR);
+            }
+
+            // Индикатор включения
+            if (module.isEnabled()) {
+                ctx.fill(panelX + 10, currentY + 6, panelX + 14, currentY + 14, ACCENT_COLOR);
+            }
+
+            // Название модуля
+            int textColor = module.isEnabled() ? TEXT_ON : TEXT_OFF;
+            ctx.drawTextWithShadow(this.textRenderer, module.getName(), panelX + 22, currentY + 6, textColor);
+
+            currentY += 22;
+        }
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) {
-            return super.mouseClicked(mouseX, mouseY, button);
+        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+
+        // Клик по категориям
+        int catX = 150;
+        int catY = 25;
+        for (Category cat : Category.values()) {
+            if (mouseX >= catX && mouseX <= catX + 80 && mouseY >= catY && mouseY <= catY + 20) {
+                selectedCategory = cat;
+                playSound();
+                return true;
+            }
+            catX += 90;
         }
 
-        // Проверяем окна в обратном порядке: верхнее окно получает клик первым.
-        Window[] orderedWindows = windows.values().toArray(new Window[0]);
+        // Клик по модулям
+        int panelX = 20;
+        int panelY = 70 + 30;
+        int panelWidth = 180;
 
-        for (int i = orderedWindows.length - 1; i >= 0; i--) {
-            Window window = orderedWindows[i];
-
-            if (window.isMouseOverHeader(mouseX, mouseY)) {
-                if (hasShiftDown()) {
-                    draggedWindow = window;
-                    dragOffsetX = mouseX - window.x;
-                    dragOffsetY = mouseY - window.y;
-                }
-                return true;
-            }
-
-            Module module = window.getModuleAt(mouseX, mouseY);
-            if (module != null) {
+        for (Module module : MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory)) {
+            if (mouseX >= panelX + 5 && mouseX <= panelX + panelWidth - 5 && 
+                mouseY >= panelY && mouseY <= panelY + 20) {
                 module.toggle();
-                playToggleSound();
+                playSound();
                 return true;
             }
+            panelY += 22;
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    @Override
-    public boolean mouseDragged(
-            double mouseX,
-            double mouseY,
-            int button,
-            double deltaX,
-            double deltaY
-    ) {
-        if (button == 0 && draggedWindow != null) {
-            draggedWindow.x = clampX((int) (mouseX - dragOffsetX));
-            draggedWindow.y = clampY((int) (mouseY - dragOffsetY));
-            return true;
-        }
-
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
-    }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            draggedWindow = null;
-        }
-
-        return super.mouseReleased(mouseX, mouseY, button);
-    }
-
-    private int clampX(int x) {
-        return Math.max(0, Math.min(x, Math.max(0, width - WINDOW_WIDTH)));
-    }
-
-    private int clampY(int y) {
-        return Math.max(0, Math.min(y, Math.max(0, height - HEADER_HEIGHT)));
-    }
-
-    private void playToggleSound() {
-        if (MyVisualsClient.moduleManager == null) {
-            return;
-        }
-
-        GuiSoundsModule sounds =
-                MyVisualsClient.moduleManager.getModule(GuiSoundsModule.class);
-
+    private void playSound() {
+        GuiSoundsModule sounds = MyVisualsClient.moduleManager.getModule(GuiSoundsModule.class);
         if (sounds != null && sounds.isEnabled()) {
             sounds.playToggleSound(true);
         }
     }
 
-    private class Window {
-        private final Category category;
-        private int x;
-        private int y;
-
-        private Window(Category category, int x, int y) {
-            this.category = category;
-            this.x = x;
-            this.y = y;
-        }
-
-        private int getHeight() {
-            int moduleCount =
-                    MyVisualsClient.moduleManager.getModulesByCategory(category).size();
-
-            return HEADER_HEIGHT + 5 + moduleCount * ROW_HEIGHT + 5;
-        }
-
-        private void render(DrawContext context, int mouseX, int mouseY) {
-            int height = getHeight();
-
-            RenderUtils.drawRoundedRect(
-                    context, x, y, WINDOW_WIDTH, height, 8, GLASS_BG
-            );
-
-            context.fill(x, y, x + WINDOW_WIDTH, y + 2, ACCENT_COLOR);
-
-            context.drawTextWithShadow(
-                    textRenderer,
-                    category.getName(),
-                    x + 10,
-                    y + 8,
-                    category.getColor()
-            );
-
-            int rowY = y + HEADER_HEIGHT + 5;
-
-            for (Module module :
-                    MyVisualsClient.moduleManager.getModulesByCategory(category)) {
-                boolean hovered = isMouseOver(
-                        mouseX, mouseY,
-                        x + 5, rowY,
-                        WINDOW_WIDTH - 10, ROW_CONTENT_HEIGHT
-                );
-
-                if (hovered) {
-                    RenderUtils.drawRoundedRect(
-                            context,
-                            x + 5, rowY,
-                            WINDOW_WIDTH - 10, ROW_CONTENT_HEIGHT,
-                            4, HOVER_COLOR
-                    );
-                }
-
-                if (module.isEnabled()) {
-                    context.fill(
-                            x + 7, rowY + 5,
-                            x + 9, rowY + 15,
-                            ACCENT_COLOR
-                    );
-                }
-
-                context.drawTextWithShadow(
-                        textRenderer,
-                        module.getName(),
-                        x + 15,
-                        rowY + 6,
-                        module.isEnabled() ? TEXT_COLOR : TEXT_DIM
-                );
-
-                rowY += ROW_HEIGHT;
-            }
-        }
-
-        private boolean isMouseOverHeader(double mouseX, double mouseY) {
-            return mouseX >= x
-                    && mouseX <= x + WINDOW_WIDTH
-                    && mouseY >= y
-                    && mouseY <= y + HEADER_HEIGHT;
-        }
-
-        private Module getModuleAt(double mouseX, double mouseY) {
-            int rowY = y + HEADER_HEIGHT + 5;
-
-            for (Module module :
-                    MyVisualsClient.moduleManager.getModulesByCategory(category)) {
-                boolean insideRow = mouseX >= x + 5
-                        && mouseX <= x + WINDOW_WIDTH - 5
-                        && mouseY >= rowY
-                        && mouseY <= rowY + ROW_CONTENT_HEIGHT;
-
-                if (insideRow) {
-                    return module;
-                }
-
-                rowY += ROW_HEIGHT;
-            }
-
-            return null;
-        }
-    }
-
-    private boolean isMouseOver(
-            double mouseX,
-            double mouseY,
-            int x,
-            int y,
-            int w,
-            int h
-    ) {
-        return mouseX >= x
-                && mouseX <= x + w
-                && mouseY >= y
-                && mouseY <= y + h;
-    }
-
     @Override
-    public boolean shouldPause() {
-        return false;
+    public boolean shouldCloseOnEsc() {
+        return true;
     }
 }
