@@ -17,42 +17,32 @@ public class CustomTitleScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // Глубокий бирюзово-графитовый градиентный фон (как на 2-м фото)
         ctx.fillGradient(0, 0, this.width, this.height, new Color(12, 22, 26).getRGB(), new Color(24, 42, 46).getRGB());
-
-        // Плавные световые волны на фоне
         float t = (System.currentTimeMillis() % 8000L) / 8000.0f;
         int waveY = (int) (this.height * 0.45f + Math.sin(t * Math.PI * 2.0) * 18);
         ctx.fillGradient(0, waveY, this.width, this.height, new Color(45, 95, 95, 45).getRGB(), new Color(10, 16, 20, 160).getRGB());
 
-        // Стеклянная карточка слева (как EvoVisuals)
-        int cardW = 165, cardH = Math.min(220, this.height - 28);
-        int cardX = 28, cardY = (this.height - cardH) / 2;
+        int cardW = 175, cardH = Math.min(220, this.height - 28);
+        int cardX = (this.width - cardW) / 2, cardY = (this.height - cardH) / 2;
 
         rect(ctx, cardX - 1, cardY - 1, cardW + 2, cardH + 2, 11, new Color(160, 215, 220, 55).getRGB());
         rect(ctx, cardX, cardY, cardW, cardH, 11, new Color(22, 32, 36, 195).getRGB());
 
-        // Шапка с логотипом
         rect(ctx, cardX + 12, cardY + 12, 20, 20, 6, new Color(75, 165, 175, 220).getRGB());
         ctx.drawTextWithShadow(this.textRenderer, "§lM", cardX + 19, cardY + 18, 0xFFFFFFFF);
         ctx.drawTextWithShadow(this.textRenderer, "§lMyVisuals", cardX + 38, cardY + 14, 0xFFF0F8FA);
         ctx.drawTextWithShadow(this.textRenderer, "§71.20.4 Client", cardX + 38, cardY + 24, 0xFF8FB0B5);
 
         ctx.drawTextWithShadow(this.textRenderer, "§8PLAY", cardX + 14, cardY + 42, 0xFF6E8B90);
-
         String[] items = {"Одиночная игра", "Сетевая игра", "Настройки", "Выход"};
         String[] icons = {"▶", "🌐", "⚙", "✕"};
         int startY = cardY + 54;
 
         for (int i = 0; i != 4; i++) {
             int bx = cardX + 10, by = startY + i * 26, bw = cardW - 20, bh = 22;
+            if (i == 2) { ctx.drawTextWithShadow(this.textRenderer, "§8CLIENT", cardX + 14, by - 2, 0xFF6E8B90); by += 10; }
+            else if (i == 3) { by += 10; }
             boolean hov = inBox(mouseX, mouseY, bx, by, bw, bh);
-            if (i == 2) {
-                ctx.drawTextWithShadow(this.textRenderer, "§8CLIENT", cardX + 14, by - 2, 0xFF6E8B90);
-                by += 10;
-            } else if (i == 3) {
-                by += 10;
-            }
             if (hov) {
                 rect(ctx, bx, by, bw, bh, 6, new Color(95, 180, 190, 65).getRGB());
                 rect(ctx, bx, by + 4, 2, 14, 1, new Color(110, 220, 230).getRGB());
@@ -63,7 +53,6 @@ public class CustomTitleScreen extends Screen {
             ctx.drawTextWithShadow(this.textRenderer, items[i], bx + 22, by + 7, hov ? 0xFFFFFFFF : 0xFFC5D8DC);
         }
 
-        // Плашка профиля снизу внутри карточки
         int profY = cardY + cardH - 32;
         rect(ctx, cardX + 10, profY, cardW - 20, 22, 6, new Color(255, 255, 255, 18).getRGB());
         rect(ctx, cardX + 14, profY + 4, 14, 14, 4, new Color(85, 185, 195).getRGB());
@@ -76,8 +65,8 @@ public class CustomTitleScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0 || this.client == null) return super.mouseClicked(mouseX, mouseY, button);
-        int cardW = 165, cardH = Math.min(220, this.height - 28);
-        int cardX = 28, cardY = (this.height - cardH) / 2, startY = cardY + 54;
+        int cardW = 175, cardH = Math.min(220, this.height - 28);
+        int cardX = (this.width - cardW) / 2, cardY = (this.height - cardH) / 2, startY = cardY + 54;
 
         for (int i = 0; i != 4; i++) {
             int bx = cardX + 10, by = startY + i * 26, bw = cardW - 20, bh = 22;
