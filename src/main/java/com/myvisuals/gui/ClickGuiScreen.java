@@ -26,7 +26,6 @@ public class ClickGuiScreen extends Screen {
 
     // Анимации
     private float expandAnimation = 0f;
-    private float hoverAnimation = 0f;
     private float[] moduleHoverAnimations;
     private float[] moduleExpandAnimations;
 
@@ -44,8 +43,9 @@ public class ClickGuiScreen extends Screen {
 
     public ClickGuiScreen() {
         super(Text.literal("MyVisuals GUI"));
-        this.guiX = (this.width - GUI_WIDTH) / 2;
-        this.guiY = (this.height - GUI_HEIGHT) / 2;
+        // Инициализация позиции по центру (будет обновлена в render при первом запуске)
+        this.guiX = 0;
+        this.guiY = 0;
     }
 
     @Override
@@ -69,38 +69,42 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // Затемнение фона с градиентом
-        drawGradientRect(ctx, 0, 0, this.width, this.height, 
-            new Color(8, 12, 18, 200).getRGB(), 
-            new Color(15, 20, 30, 220).getRGB());
+        // Если это первый рендер, центрируем окно
+        if (guiX == 0 && guiY == 0) {
+            guiX = (this.width - GUI_WIDTH) / 2;
+            guiY = (this.height - GUI_HEIGHT) / 2;
+        }
+
+        // Затемнение фона
+        ctx.fill(0, 0, this.width, this.height, new Color(8, 12, 18, 200).getRGB());
 
         int guiW = Math.min(GUI_WIDTH, this.width - 24);
         int guiH = Math.min(GUI_HEIGHT, this.height - 24);
 
-        // Обновляем позицию если окно слишком большое
+        // Ограничение выхода за экран
         if (guiX + guiW > this.width) guiX = this.width - guiW - 12;
         if (guiY + guiH > this.height) guiY = this.height - guiH - 12;
         if (guiX < 12) guiX = 12;
         if (guiY < 12) guiY = 12;
 
-        // Цвета с градиентом
+        // Цвета
         Color accent1 = new Color(100, 180, 255);
         Color accent2 = new Color(150, 120, 255);
         int accentGradient = blendColors(accent1.getRGB(), accent2.getRGB(), 0.5f);
 
-        // --- Стеклянный эффект (Glassmorphism) ---
+        // --- Стеклянный эффект ---
         // Внешнее свечение
         drawGlow(ctx, guiX - 8, guiY - 8, guiW + 16, guiH + 16, 20, accentGradient, 40);
         
-        // Основная рамка с градиентом
+        // Рамка с градиентом
         drawGradientRoundedRect(ctx, guiX - 1, guiY - 1, guiW + 2, guiH + 2, 12, 
             new Color(100, 180, 255, 80).getRGB(), 
             new Color(150, 120, 255, 80).getRGB());
         
-        // Основной фон (стекло)
+        // Основной фон
         roundedRect(ctx, guiX, guiY, guiW, guiH, 12, new Color(20, 25, 35, 230).getRGB());
         
-        // Внутренняя подсветка сверху
+        // Внутренняя подсветка
         drawGradientRect(ctx, guiX + 1, guiY + 1, guiX + guiW - 1, guiY + 60, 
             new Color(255, 255, 255, 15).getRGB(), 
             new Color(255, 255, 255, 0).getRGB());
@@ -109,57 +113,48 @@ public class ClickGuiScreen extends Screen {
         roundedRect(ctx, guiX + 6, guiY + 6, SIDE_PANEL_WIDTH - 6, guiH - 12, 10, 
             new Color(15, 20, 28, 200).getRGB());
 
-        // --- Логотип ---
         drawLogo(ctx, guiX, guiY);
-        
-        // --- Профиль ---
         drawProfile(ctx, guiX, guiY, guiH);
-
-        // --- Категории с иконками ---
         drawCategories(ctx, guiX, guiY, mouseX, mouseY);
 
-        // --- Правая панель (Модули) ---
+        // Правая панель
         int contentX = guiX + SIDE_PANEL_WIDTH + 10;
         int contentW = guiW - SIDE_PANEL_WIDTH - 20;
         int contentYStart = guiY + 40;
         int contentH = guiH - 50;
 
-        // Заголовок категории с градиентом
         ctx.getMatrices().push();
         ctx.getMatrices().translate(contentX + 8, guiY + 14, 0);
         ctx.drawTextWithShadow(this.textRenderer, "§l" + selectedCategory.getName(), 0, 0, 0xFFFFFFFF);
         ctx.getMatrices().pop();
         
-        ctx.drawTextWithShadow(this.textRenderer, "§7Настрой визуалы под себя", contentX + 8, guiY + 26, 0xFF8899B0);
+        ctx.drawTextWithShadow(this.textRenderer, "§7Настрой визуалы", contentX + 8, guiY + 26, 0xFF8899B0);
 
-        // Разделительная линия с градиентом
         drawGradientLine(ctx, contentX, guiY + 38, contentX + contentW, guiY + 38, 
             new Color(100, 180, 255, 100).getRGB(), 
             new Color(150, 120, 255, 100).getRGB());
 
-        // Обрезаем область
         ctx.enableScissor(contentX, contentYStart, contentX + contentW, contentYStart + contentH);
 
         List<Module> modules = MyVisualsClient.moduleManager.getModulesByCategory(selectedCategory);
-        int currentY = contentYStart - (int) scrollOffset;
-
-        // Инициализируем массивы анимаций если нужно
+        
+        // Инициализация массивов анимаций
         if (moduleHoverAnimations == null || moduleHoverAnimations.length != modules.size()) {
             moduleHoverAnimations = new float[modules.size()];
             moduleExpandAnimations = new float[modules.size()];
         }
+
+        int currentY = contentYStart - (int) scrollOffset;
 
         for (int i = 0; i < modules.size(); i++) {
             Module mod = modules.get(i);
             boolean exp = (expandedModule == mod);
             int mH = exp ? MODULE_ITEM_HEIGHT_OPEN : MODULE_ITEM_HEIGHT_CLOSED;
 
-            // Анимация hover
             boolean isHovered = inBox(mouseX, mouseY, contentX, currentY, contentW, mH);
             float targetHover = isHovered ? 1f : 0f;
             moduleHoverAnimations[i] = MathHelper.lerp(ANIMATION_SPEED, moduleHoverAnimations[i], targetHover);
 
-            // Анимация раскрытия
             float targetExpand = exp ? 1f : 0f;
             moduleExpandAnimations[i] = MathHelper.lerp(ANIMATION_SPEED, moduleExpandAnimations[i], targetExpand);
 
@@ -176,29 +171,23 @@ public class ClickGuiScreen extends Screen {
         }
 
         ctx.disableScissor();
-
-        // Полоса прокрутки
         drawModernScrollBar(ctx, contentX, contentYStart, contentW, contentH, modules.size());
 
         super.render(ctx, mouseX, mouseY, delta);
     }
 
     private void drawLogo(DrawContext ctx, int x, int y) {
-        // Анимированный логотип с градиентом
         ctx.getMatrices().push();
         float scale = 1.8f + MathHelper.sin((float) (System.currentTimeMillis() / 500.0)) * 0.1f;
         ctx.getMatrices().translate(x + SIDE_PANEL_WIDTH / 2f, y + 18, 0);
         ctx.getMatrices().scale(scale, scale, 1.0f);
         ctx.drawTextWithShadow(this.textRenderer, "§lM", -4, 0, 0xFFFFFFFF);
         ctx.getMatrices().pop();
-        
         ctx.drawTextWithShadow(this.textRenderer, "§7MyVisuals", x + 26, y + 38, 0xFF9CB0C8);
     }
 
     private void drawProfile(DrawContext ctx, int x, int y, int guiH) {
         int profY = y + guiH - 34;
-        
-        // Фон с градиентом
         drawGradientRoundedRect(ctx, x + 10, profY, SIDE_PANEL_WIDTH - 20, 24, 8,
             new Color(255, 255, 255, 10).getRGB(),
             new Color(100, 180, 255, 15).getRGB());
@@ -207,7 +196,6 @@ public class ClickGuiScreen extends Screen {
                 ? this.client.getSession().getUsername() : "Player";
         if (nick.length() > 10) nick = nick.substring(0, 10);
         
-        // Иконка пользователя
         ctx.drawTextWithShadow(this.textRenderer, "§b●", x + 16, profY + 8, 0xFF64B4FF);
         ctx.drawTextWithShadow(this.textRenderer, "§f" + nick, x + 26, profY + 8, 0xFFFFFFFF);
     }
@@ -218,7 +206,6 @@ public class ClickGuiScreen extends Screen {
             boolean sel = cat == selectedCategory;
             boolean hover = inBox(mouseX, mouseY, x + 10, catY, SIDE_PANEL_WIDTH - 20, 26);
             
-            // Анимированный фон
             if (sel || hover) {
                 int alpha = sel ? 60 : 30;
                 drawGradientRoundedRect(ctx, x + 10, catY, SIDE_PANEL_WIDTH - 20, 26, 8,
@@ -226,15 +213,12 @@ public class ClickGuiScreen extends Screen {
                     new Color(150, 120, 255, alpha).getRGB());
             }
             
-            // Иконка категории
             String icon = getCategoryIcon(cat);
             ctx.drawTextWithShadow(this.textRenderer, icon, x + 18, catY + 9, sel ? 0xFF64B4FF : 0xFF8E9EB2);
             
-            // Название
             int textColor = sel ? 0xFFFFFFFF : 0xFF8E9EB2;
             ctx.drawTextWithShadow(this.textRenderer, cat.getName(), x + 34, catY + 9, textColor);
             
-            // Индикатор выбранной категории
             if (sel) {
                 drawGradientLine(ctx, x + 10, catY, x + 10, catY + 26,
                     new Color(100, 180, 255, 200).getRGB(),
@@ -245,82 +229,69 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
+    // Исправленный метод получения иконки (без switch-case ошибок)
     private String getCategoryIcon(Category cat) {
-        return switch (cat) {
-            case RENDER -> "✦";
-            case MOVEMENT -> "➤";
-            case PLAYER -> "☻";
-            case COMBAT -> "⚔";
-            case WORLD -> "◈";
-            case MISC -> "✧";
-            default -> "●";
-        };
+        String name = cat.name().toUpperCase();
+        if (name.contains("RENDER")) return "✦";
+        if (name.contains("MOVE")) return "➤";
+        if (name.contains("PLAYER") || name.contains("LOCAL")) return "☻";
+        if (name.contains("COMBAT") || name.contains("FIGHT")) return "⚔";
+        if (name.contains("WORLD")) return "◈";
+        if (name.contains("MISC")) return "✧";
+        return "●";
     }
 
     private void drawModernModuleItem(DrawContext ctx, Module mod, int cX, int mY, int cW, int mH, 
                                       float hoverAnim, float expandAnim, int mouseX, int mouseY) {
         boolean exp = (expandedModule == mod);
         
-        // Фон с анимацией
         Color baseColor = mod.isEnabled() 
             ? new Color(42, 52, 68, 200) 
             : new Color(30, 36, 48, 175);
         
-        // Hover эффект
         if (hoverAnim > 0.01f) {
             int hoverAlpha = (int) (hoverAnim * 30);
             baseColor = new Color(
                 Math.min(255, baseColor.getRed() + 20),
                 Math.min(255, baseColor.getGreen() + 20),
                 Math.min(255, baseColor.getBlue() + 20),
-                baseColor.getAlpha() + hoverAlpha
+                Math.min(255, baseColor.getAlpha() + hoverAlpha)
             );
         }
         
-        // Рисуем фон с тенью
         roundedRect(ctx, cX + 2, mY + 2, cW, mH, 8, new Color(0, 0, 0, 40).getRGB());
         roundedRect(ctx, cX, mY, cW, mH, 8, baseColor.getRGB());
         
-        // Левая полоска индикатора (если включен)
         if (mod.isEnabled()) {
             drawGradientLine(ctx, cX, mY + 4, cX, mY + mH - 4,
                 new Color(100, 180, 255, 200).getRGB(),
                 new Color(150, 120, 255, 200).getRGB());
         }
 
-        // Название модуля
         int nameColor = mod.isEnabled() ? 0xFFFFFFFF : 0xFFC5D0E0;
         ctx.drawTextWithShadow(this.textRenderer, mod.getName(), cX + 12, mY + 8, nameColor);
         
-        // Описание
         String desc = mod.getDescription();
         if (desc != null && desc.length() > 32) desc = desc.substring(0, 32) + "..";
         if (desc != null) {
             ctx.drawTextWithShadow(this.textRenderer, desc, cX + 12, mY + 20, 0xFF7D8DA4);
         }
 
-        // Кнопки управления
         int gX = cX + cW - 50;
         int swX = cX + cW - 32;
 
-        // Шестеренка с hover эффектом
         boolean hoverGear = inBox(mouseX, mouseY, gX, mY + 8, 16, 16);
         int gearAlpha = hoverGear ? 60 : 25;
         roundedRect(ctx, gX, mY + 8, 16, 16, 4, new Color(255, 255, 255, gearAlpha).getRGB());
         ctx.drawTextWithShadow(this.textRenderer, "⚙", gX + 4, mY + 11, 0xFFD0DCF0);
 
-        // Тумблер с анимацией
-        Color toggleBg = mod.isEnabled() 
-            ? new Color(100, 180, 255) 
-            : new Color(60, 70, 88);
+        Color toggleBg = mod.isEnabled() ? new Color(100, 180, 255) : new Color(60, 70, 88);
         roundedRect(ctx, swX, mY + 10, 26, 12, 6, toggleBg.getRGB());
         
-        // Анимированный кружок тумблера
         float knobPos = mod.isEnabled() ? 1f : 0f;
         int knobX = swX + 2 + (int) (knobPos * 12);
         roundedRect(ctx, knobX, mY + 12, 8, 8, 4, 0xFFFFFFFF);
 
-        // Раскрытые настройки с анимацией
         if (expandAnim > 0.01f) {
             ctx.getMatrices().push();
             float scaleY = expandAnim;
@@ -364,11 +335,9 @@ public class ClickGuiScreen extends Screen {
                 int bw = 12;
                 int bh = 12;
 
-                // Цветной квадрат с тенью
                 roundedRect(ctx, bx + 1, by + 1, bw, bh, 4, new Color(0, 0, 0, 60).getRGB());
                 roundedRect(ctx, bx, by, bw, bh, 4, colorRgb);
 
-                // Белая рамка
                 int borderColor = 0xFFFFFFFF;
                 ctx.fill(bx, by, bx + bw, by + 1, borderColor);
                 ctx.fill(bx, by + bh - 1, bx + bw, by + bh, borderColor);
@@ -391,10 +360,7 @@ public class ClickGuiScreen extends Screen {
         if (barY > maxBarY) barY = maxBarY;
         if (barY < contY) barY = contY;
 
-        // Фон скроллбара
         roundedRect(ctx, contX + contW + 6, contY, 4, contH, 2, new Color(255, 255, 255, 10).getRGB());
-        
-        // Сам скроллбар с градиентом
         drawGradientRoundedRect(ctx, contX + contW + 6, barY, 4, barHeight, 2,
             new Color(100, 180, 255, 180).getRGB(),
             new Color(150, 120, 255, 180).getRGB());
@@ -407,7 +373,6 @@ public class ClickGuiScreen extends Screen {
 
         GuiSoundsModule sounds = MyVisualsClient.moduleManager.getGuiSounds();
 
-        // Проверка drag-and-drop (клик по заголовку)
         if (inBox(mouseX, mouseY, guiX, guiY, guiW, 40)) {
             isDragging = true;
             dragOffsetX = (int) (mouseX - guiX);
@@ -415,7 +380,6 @@ public class ClickGuiScreen extends Screen {
             return true;
         }
 
-        // Клик по категориям
         int catY = guiY + 60;
         for (Category cat : Category.values()) {
             if (inBox(mouseX, mouseY, guiX + 10, catY, SIDE_PANEL_WIDTH - 20, 26)) {
@@ -428,7 +392,6 @@ public class ClickGuiScreen extends Screen {
             catY += 32;
         }
 
-        // Клик по модулям
         int contentX = guiX + SIDE_PANEL_WIDTH + 10;
         int contentW = guiW - SIDE_PANEL_WIDTH - 20;
         int contentYStart = guiY + 40;
@@ -512,8 +475,6 @@ public class ClickGuiScreen extends Screen {
         return true;
     }
 
-    // Утилиты для рисования
-
     private void roundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         if (w < 1 || h < 1) return;
         int rad = Math.min(r, Math.min(w / 2, h / 2));
@@ -540,18 +501,17 @@ public class ClickGuiScreen extends Screen {
     }
 
     private void drawGradientRoundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color1, int color2) {
-        // Упрощенная версия - рисуем градиентный прямоугольник
         drawGradientRect(ctx, x, y, x + w, y + h, color1, color2);
     }
 
     private void drawGradientLine(DrawContext ctx, int x1, int y1, int x2, int y2, int color1, int color2) {
-        if (y1 == y2) { // Горизонтальная линия
+        if (y1 == y2) { 
             for (int x = x1; x < x2; x++) {
                 float progress = (float) (x - x1) / (x2 - x1);
                 int color = blendColors(color1, color2, progress);
                 ctx.fill(x, y1, x + 1, y2 + 1, color);
             }
-        } else { // Вертикальная линия
+        } else { 
             for (int y = y1; y < y2; y++) {
                 float progress = (float) (y - y1) / (y2 - y1);
                 int color = blendColors(color1, color2, progress);
