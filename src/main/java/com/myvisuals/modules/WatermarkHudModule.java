@@ -5,73 +5,55 @@ import com.myvisuals.module.Module;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.PlayerListEntry;
-
 import java.awt.Color;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 public class WatermarkHudModule extends Module {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     public WatermarkHudModule() {
-        super("WatermarkHUD", "Стильная верхняя капсула со временем и FPS", Category.RENDER);
+        super("WatermarkHUD", "Двойная стеклянная ватермарка в стиле Plintus", Category.RENDER);
         setEnabled(true);
-
-        HudRenderCallback.EVENT.register((context, tickDelta) -> {
+        HudRenderCallback.EVENT.register((ctx, delta) -> {
             if (!isEnabled() || mc.player == null || mc.options.hudHidden) return;
-            renderWatermark(context);
+            renderHud(ctx);
         });
     }
 
-    private void renderWatermark(DrawContext context) {
-        String time = LocalTime.now().format(TIME_FMT);
+    private void renderHud(DrawContext ctx) {
+        String nick = mc.getSession() != null ? mc.getSession().getUsername() : "Player";
         int fps = mc.getCurrentFps();
         int ping = 0;
         if (mc.getNetworkHandler() != null && mc.player != null) {
-            PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
-            if (entry != null) {
-                ping = entry.getLatency();
-            }
+            PlayerListEntry e = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
+            if (e != null) ping = e.getLatency();
         }
 
-        String partTime = "§7" + time;
-        String partName = "§f§lMy Visuals";
-        String partStats = "§7" + fps + " fps §8• §7" + ping + " ms";
-        String sep = "  §8|  ";
+        String line1 = "§b§lM §f§lMyVisuals §8| §7" + nick + " §8| §f" + fps + " §7fps §8| §f" + ping + " §7ms";
+        int w1 = mc.textRenderer.getWidth(line1) + 14;
+        rect(ctx, 5, 5, w1 + 2, 17, 5, new Color(150, 200, 220, 45).getRGB());
+        rect(ctx, 6, 6, w1, 15, 5, new Color(22, 28, 36, 185).getRGB());
+        ctx.drawTextWithShadow(mc.textRenderer, line1, 12, 10, 0xFFFFFFFF);
 
-        String fullText = partTime + sep + partName + sep + partStats;
-
-        int textW = mc.textRenderer.getWidth(fullText);
-        int boxW = textW + 18;
-        int boxH = 18;
-        int screenW = mc.getWindow().getScaledWidth();
-        int x = (screenW - boxW) / 2;
-        int y = 6;
-
-        // Тонкая внешняя обводка капсулы
-        drawRoundedRect(context, x - 1, y - 1, boxW + 2, boxH + 2, 7, new Color(255, 255, 255, 36).getRGB());
-        // Основной матовый фон капсулы
-        drawRoundedRect(context, x, y, boxW, boxH, 7, new Color(24, 25, 31, 220).getRGB());
-        // Акцентная полоска снизу по центру
-        drawRoundedRect(context, x + boxW / 2 - 14, y + boxH - 2, 28, 2, 1, new Color(225, 65, 65, 230).getRGB());
-
-        // Текст внутри капсулы
-        context.drawTextWithShadow(mc.textRenderer, fullText, x + 9, y + 5, 0xFFFFFFFF);
+        int px = (int) mc.player.getX(), py = (int) mc.player.getY(), pz = (int) mc.player.getZ();
+        double dx = mc.player.getX() - mc.player.prevX, dz = mc.player.getZ() - mc.player.prevZ;
+        String bps = String.format("%.1f", Math.sqrt(dx * dx + dz * dz) * 20.0);
+        String line2 = "§7XYZ: §f" + px + " " + py + " " + pz + " §8| §7BPS: §f" + bps + " §8| §f" + LocalTime.now().format(FMT);
+        int w2 = mc.textRenderer.getWidth(line2) + 14;
+        rect(ctx, 5, 24, w2 + 2, 16, 5, new Color(150, 200, 220, 40).getRGB());
+        rect(ctx, 6, 25, w2, 14, 5, new Color(22, 28, 36, 175).getRGB());
+        ctx.drawTextWithShadow(mc.textRenderer, line2, 12, 28, 0xFFFFFFFF);
     }
 
-    private void drawRoundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
-        if (w <= 0 || h <= 0) return;
-        int radius = Math.min(r, Math.min(w / 2, h / 2));
-        ctx.fill(x + radius, y, x + w - radius, y + h, color);
-        ctx.fill(x, y + radius, x + radius, y + h - radius, color);
-        ctx.fill(x + w - radius, y + radius, x + w, y + h - radius, color);
-
-        for (int i = 0; i < radius; i++) {
-            int offset = radius - (int) Math.round(Math.sqrt(radius * radius - (radius - i) * (radius - i)));
-            ctx.fill(x + offset, y + i, x + radius, y + i + 1, color);
-            ctx.fill(x + w - radius, y + i, x + w - offset, y + i + 1, color);
-            ctx.fill(x + offset, y + h - i - 1, x + radius, y + h - i, color);
-            ctx.fill(x + w - radius, y + h - i - 1, x + w - offset, y + h - i, color);
+    private void rect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        if (Integer.compare(w, 1) == -1 || Integer.compare(h, 1) == -1) return;
+        int rad = Math.min(r, Math.min(w / 2, h / 2));
+        ctx.fill(x + rad, y, x + w - rad, y + h, color); ctx.fill(x, y + rad, x + rad, y + h - rad, color); ctx.fill(x + w - rad, y + rad, x + w, y + h - rad, color);
+        for (int i = 0; i != rad; i++) {
+            int off = rad - (int) Math.round(Math.sqrt(rad * rad - (rad - i) * (rad - i)));
+            ctx.fill(x + off, y + i, x + rad, y + i + 1, color); ctx.fill(x + w - rad, y + i, x + w - off, y + i + 1, color);
+            ctx.fill(x + off, y + h - i - 1, x + rad, y + h - i, color); ctx.fill(x + w - rad, y + h - i - 1, x + w - off, y + h - i, color);
         }
     }
 }
