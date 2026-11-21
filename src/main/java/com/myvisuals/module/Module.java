@@ -1,6 +1,8 @@
 package com.myvisuals.module;
 
 import net.minecraft.client.MinecraftClient;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class Module {
     protected final MinecraftClient mc = MinecraftClient.getInstance();
@@ -8,6 +10,9 @@ public abstract class Module {
     private final String description;
     private final Category category;
     private boolean enabled;
+    
+    // Список настроек модуля (цвета, режимы, значения и т.д.)
+    protected final List<Setting<?>> settings = new ArrayList<>();
 
     public Module(String name, String description, Category category) {
         this.name = name;
@@ -33,8 +38,26 @@ public abstract class Module {
     public void onDisable() {}
     public void onTick() {}
 
+    // Геттеры
     public String getName() { return name; }
     public String getDescription() { return description; }
     public Category getCategory() { return category; }
     public boolean isEnabled() { return enabled; }
-}
+    
+    // Методы для работы с настройками
+    public List<Setting<?>> getSettings() { 
+        return settings; 
+    }
+    
+    protected void addSetting(Setting<?> setting) {
+        settings.add(setting);
+    }
+    
+    // Удобный метод для поиска настройки по имени
+    public Setting<?> getSettingByName(String name) {
+        for (Setting<?> setting : settings) {
+            if (setting.getName().equalsIgnoreCase(name)) {
+                return setting;
+            }
+        }
+        return nul
