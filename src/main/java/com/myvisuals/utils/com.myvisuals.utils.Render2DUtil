@@ -1,1 +1,79 @@
+package com.myvisuals.utils;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.render.*;
+import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix4f;
+
+import java.awt.Color;
+
+public class Render2DUtil {
+
+    public static void drawRoundedRect(MatrixStack matrices, float x, float y, float width, float height, float radius, Color color) {
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        float r = color.getRed() / 255f;
+        float g = color.getGreen() / 255f;
+        float b = color.getBlue() / 255f;
+        float a = color.getAlpha() / 255f;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_COLOR);
+
+        // Центр
+        buffer.vertex(matrix, x + width / 2f, y + height / 2f, 0).color(r, g, b, a).next();
+
+        // Углы с плавной дугой
+        drawCorner(buffer, matrix, x + width - radius, y + height - radius, radius, 0, 90, r, g, b, a);
+        drawCorner(buffer, matrix, x + width - radius, y + radius, radius, 90, 180, r, g, b, a);
+        drawCorner(buffer, matrix, x + radius, y + radius, radius, 180, 270, r, g, b, a);
+        drawCorner(buffer, matrix, x + radius, y + height - radius, radius, 270, 360, r, g, b, a);
+
+        // Замыкаем контур
+        buffer.vertex(matrix, x + width, y + height - radius, 0).color(r, g, b, a).next();
+
+        BufferRenderer.drawWithGlobalProgram(buffer.end());
+        RenderSystem.disableBlend();
+    }
+
+    public static void drawRoundedOutline(MatrixStack matrices, float x, float y, float width, float height, float radius, float lineWidth, Color color) {
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        float r = color.getRed() / 255f;
+        float g = color.getGreen() / 255f;
+        float b = color.getBlue() / 255f;
+        float a = color.getAlpha() / 255f;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.lineWidth(lineWidth);
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(VertexFormat.DrawMode.DEBUG_LINE_STRIP, VertexFormats.POSITION_COLOR);
+
+        drawCorner(buffer, matrix, x + width - radius, y + height - radius, radius, 0, 90, r, g, b, a);
+        drawCorner(buffer, matrix, x + width - radius, y + radius, radius, 90, 180, r, g, b, a);
+        drawCorner(buffer, matrix, x + radius, y + radius, radius, 180, 270, r, g, b, a);
+        drawCorner(buffer, matrix, x + radius, y + height - radius, radius, 270, 360, r, g, b, a);
+        buffer.vertex(matrix, x + width, y + height - radius, 0).color(r, g, b, a).next();
+
+        BufferRenderer.drawWithGlobalProgram(buffer.end());
+        RenderSystem.disableBlend();
+    }
+
+    private static void drawCorner(BufferBuilder buffer, Matrix4f matrix, float cx, float cy, float radius, int startAngle, int endAngle, float r, float g, float b, float a) {
+        for (int i = startAngle; i <= endAngle; i += 6) {
+            double rad = Math.toRadians(i);
+            float vx = cx + (float) (Math.sin(rad) * radius);
+            float vy = cy + (float) (Math.cos(rad) * radius);
+            buffer.vertex(matrix, vx, vy, 0).color(r, g, b, a).next();
+        }
+    }
+
+    public static boolean isHovered(double mouseX, double mouseY, float x, float y, float width, float height) {
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+    }
+}
