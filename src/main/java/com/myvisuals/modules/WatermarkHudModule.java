@@ -1,56 +1,81 @@
 package com.myvisuals.modules;
 
-import com.myvisuals.utils.RenderUtils;
+import com.myvisuals.utils.Render2DUtil;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
+
 import java.awt.Color;
+import java.util.List;
 
-public class WatermarkHudModule /* extends Module */ {
+public class WatermarkHudModule {
 
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private static boolean enabled = true;
 
-    // Вызывай этот метод из HudRenderCallback.EVENT
-    public void onRenderHud(MatrixStack matrices) {
-        if (mc.player == null || mc.options.debugEnabled) return;
+    public static void init() {
+        HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
+            if (!enabled) return;
+            renderHud(drawContext);
+        });
+    }
 
-        // 1. Собираем актуальные данные
-        String clientName = "MyVisuals";
-        String username = mc.getSession().getUsername();
-        int fps = mc.getCurrentFps();
-        String coords = String.format("XYZ: %d, %d, %d", (int) mc.player.getX(), (int) mc.player.getY(), (int) mc.player.getZ());
+    private static void renderHud(DrawContext context) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || mc.options.hudHidden) return;
 
-        String text = String.format("%s  |  %s  |  %d FPS  |  %s", clientName, username, fps, coords);
+        MatrixStack matrices = context.getMatrices();
 
-        // 2. Рассчитываем размеры плашки
-        float x = 10f;
-        float y = 10f;
-        float paddingX = 8f;
-        float height = 20f;
-        float textWidth = mc.textRenderer.getWidth(text);
-        float totalWidth = textWidth + (paddingX * 2);
+        // Данные для Watermark
+        String title = "MyVisuals";
+        String info = " | " + mc.getCurrentFps() + " FPS | " +
+                (int) mc.player.getX() + ", " + (int) mc.player.getY() + ", " + (int) mc.player.getZ();
 
-        // 3. Цвета в стиле Modern Dark
-        Color bgColor = new Color(18, 18, 24, 210);       // Темный полупрозрачный фон
-        Color accent1 = new Color(138, 43, 226, 255);     // Фиолетовый неон
-        Color accent2 = new Color(0, 191, 255, 255);      // Голубой неон
+        int titleWidth = mc.textRenderer.getWidth(title);
+        int infoWidth = mc.textRenderer.getWidth(info);
+        float boxWidth = titleWidth + infoWidth + 16;
+        float boxHeight = 20;
 
-        // 4. Отрисовка через наш кастомный рендер
-        RenderUtils.drawRoundedRect(matrices, x, y, totalWidth, height, 5f, bgColor);
-        RenderUtils.drawGradientLine(matrices, x + 4, y, totalWidth - 8, 1.5f, accent1, accent2);
+        // Полупрозрачный тёмный фон (эффект матового стекла) + акцентная обводка
+        Color bg = new Color(15, 17, 26, 165);
+        Color accent = new Color(115, 103, 240, 220);
 
-        // 5. Отрисовка текста (если нужен полный отказ от FontRenderer MC — потребуется кастомный Glyph-рендер)
-        mc.textRenderer.draw(
-            text,
-            x + paddingX,
-            y + (height - mc.textRenderer.fontHeight) / 2f + 1,
-            Color.WHITE.getRGB(),
-            true,
-            matrices.peek().getPositionMatrix(),
-            mc.getBufferBuilders().getEntityVertexConsumers(),
-            net.minecraft.client.font.TextRenderer.TextLayerType.NORMAL,
-            0,
-            15728880
-        
-        );
+        Render2DUtil.drawRoundedRect(matrices, 8, 8, boxWidth, boxHeight, 6f, bg);
+        Render2DUtil.drawRoundedOutline(matrices, 8, 8, boxWidth, boxHeight, 6f, 1.5f, accent);
+
+        // Текст поверх кастомной плашки
+        context.drawText(mc.textRenderer, title, 16, 14, new Color(140, 130, 255).getRGB(), false);
+        context.drawText(mc.textRenderer, info, 16 + titleWidth, 14, new Color(225, 225, 235).getRGB(), false);
+
+        // Список активных модулей (ArrayList) в правом верхнем углу
+        renderActiveModules(context, mc, matrices);
+    }
+
+    private static void renderActiveModules(DrawContext context, MinecraftClient mc, MatrixStack matrices) {
+        // Подключите сюда ваш менеджер модулей (например, ModuleManager.getEnabledModules())
+        List<String> active = List.of("TargetEsp", "JumpCircles", "ChinaHat", "HitParticles", "CustomSky");
+
+        int screenWidth = mc.getWindow().getScaledWidth();
+        float yOffset = 8;
+
+        for (String mod : active) {
+            int w = mc.textRenderer.getWidth(mod);
+            float x = screenWidth - w - 18;
+
+            Render2DUtil.drawRoundedRect(matrices, x, yOffset, w + 10, 15, 4f, new Color(15, 17, 26, 150));
+            // Неоновая полоска индикатора справа
+            Render2DUtil.drawRoundedRect(matrices, screenWidth - 9, yOffset + 2, 2, 11, 1f, new Color(115, 103, 240, 255));
+            context.drawText(mc.textRenderer, mod, (int) x + 5, (int) yOffset + 4, Color.WHITE.getRGB(), false);
+
+            yOffset += 17;
+        }
+    }
+
+    public static void toggle() {
+        enabled = !enabled;
+    }
+
+    public static boolean isEnabled() {
+        return enabled;
     }
 }
